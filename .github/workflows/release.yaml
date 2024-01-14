@@ -72,6 +72,10 @@ jobs:
         id: ref-type
         run: cargo run --package ref-type -- --reference ${{ github.ref }}
 
+      - name: chmod
+        id: chmod
+        run: chmod +x ./bin/package
+
       - name: Package
         id: package
         env:
