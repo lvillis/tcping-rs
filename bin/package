@@ -16,5 +16,14 @@ cd $DIST
 ARCHIVE="tcping-$VERSION-$TARGET.tar.gz"
 tar czf $ARCHIVE *
 
-# Create a new environment file
+# List the contents of the $DIST directory
+ls -l
+
+# Print the value of $ARCHIVE
+echo "ARCHIVE: $ARCHIVE"
+
+# Write the path of the archive file to GITHUB_ENV
 echo "ARCHIVE=$(pwd)/$ARCHIVE" >> $GITHUB_ENV
+
+# Print the contents of GITHUB_ENV
+cat $GITHUB_ENV
