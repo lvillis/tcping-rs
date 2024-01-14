@@ -2,7 +2,7 @@
 set -euxo pipefail
 
 VERSION=${REF#"refs/tags/"}
-DIST=`pwd`/dist
+DIST=$GITHUB_WORKSPACE/dist
 mkdir -p $DIST
 
 echo "Packaging for $TARGET..."
@@ -23,7 +23,7 @@ ls -l
 echo "ARCHIVE: $ARCHIVE"
 
 # Write the path of the archive file to GITHUB_ENV
-echo "ARCHIVE=$(pwd)/$ARCHIVE" >> $GITHUB_ENV
+echo "ARCHIVE=$GITHUB_WORKSPACE/$DIST/$ARCHIVE" >> $GITHUB_ENV
 
 # Print the contents of GITHUB_ENV
 cat $GITHUB_ENV
