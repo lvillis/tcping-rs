@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+
+VERSION=${REF#"refs/tags/"}
+DIST=`pwd`/dist
+mkdir -p $DIST
+
+echo "Packaging for $TARGET..."
+
+RUSTFLAGS="--deny warnings $TARGET_RUSTFLAGS" \
+  cargo build --bin tcping --target $TARGET --release
+
+cp target/$TARGET/release/tcping $DIST/
+
+cd $DIST
+ARCHIVE="tcping-$VERSION-$TARGET.tar.gz"
+tar czf $ARCHIVE *
+echo "::set-output name=archive::$ARCHIVE"
