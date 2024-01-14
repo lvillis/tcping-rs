@@ -15,4 +15,9 @@ cp target/$TARGET/release/tcping $DIST/
 cd $DIST
 ARCHIVE="tcping-$VERSION-$TARGET.tar.gz"
 tar czf $ARCHIVE *
-echo "::set-output name=archive::$ARCHIVE"
+
+# Create a new environment file
+echo "ARCHIVE=$ARCHIVE" >> archive.env
+
+# Write the path of the environment file to GITHUB_ENV
+echo "archive.env" >> $GITHUB_ENV
