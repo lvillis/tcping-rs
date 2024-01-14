@@ -36,7 +36,8 @@ jobs:
           profile: minimal
           target: ${{ matrix.target }}
           toolchain: stable
-
+      - name: Set execute permissions
+        run: chmod +x ./bin/package
       - name: Build and Package
         run: ./bin/package
         env:
