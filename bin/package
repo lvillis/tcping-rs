@@ -23,7 +23,7 @@ ls -l
 echo "ARCHIVE: $ARCHIVE"
 
 # Write the path of the archive file to GITHUB_ENV
-echo "ARCHIVE=$GITHUB_WORKSPACE/$DIST/$ARCHIVE" >> $GITHUB_ENV
+echo "ARCHIVE=$DIST/$ARCHIVE" >> $GITHUB_ENV
 
 # Print the contents of GITHUB_ENV
 cat $GITHUB_ENV
