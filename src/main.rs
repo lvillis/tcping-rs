@@ -58,13 +58,13 @@ fn main() {
     ctrlc::set_handler(move || {
         r.store(false, Ordering::SeqCst);
     })
-        .expect("Error setting Ctrl-C handler");
+    .expect("Error setting Ctrl-C handler");
 
     if args.continuous {
         println!();
         println!("** Pinging continuously.  Press control-c to stop **");
-        println!();
     }
+    println!();
 
     let mut successful_pings = 0;
     let mut total_duration = 0f64;
@@ -119,5 +119,35 @@ fn main() {
             "Round-trip min/avg/max = {:.4}ms/{:.4}ms/{:.4}ms",
             min_duration, avg_duration, max_duration
         );
+    }
+    println!();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::ToSocketAddrs;
+
+    #[test]
+    fn test_args_parsing() {
+        let args = Args::parse_from("tcping 127.0.0.1:80 -c 5".split_whitespace());
+        assert_eq!(args.address, "127.0.0.1:80");
+        assert_eq!(args.count, 5);
+        assert!(!args.continuous);
+    }
+
+    #[test]
+    fn test_args_parsing_with_continuous() {
+        let args = Args::parse_from("tcping 127.0.0.1:80 -t".split_whitespace());
+        assert_eq!(args.address, "127.0.0.1:80");
+        assert_eq!(args.count, 4);
+        assert!(args.continuous);
+    }
+
+    #[test]
+    fn test_domain_name_resolution() {
+        let domain_name = "cloudflare.com:80";
+        let socket_addrs = domain_name.to_socket_addrs();
+        assert!(socket_addrs.is_ok(), "Failed to resolve domain name");
     }
 }
