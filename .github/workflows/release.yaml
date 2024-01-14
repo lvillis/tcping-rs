@@ -91,7 +91,7 @@ jobs:
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         with:
           draft: false
-          files: ${{ env.ARCHIVE }}
+          files: ${{ env.ARCHIVE_FILE }}
           prerelease: ${{ steps.ref-type.outputs.value != 'release' }}
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}

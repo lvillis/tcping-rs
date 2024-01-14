@@ -20,4 +20,4 @@ tar czf $ARCHIVE *
 echo "ARCHIVE=$ARCHIVE" >> archive.env
 
 # Write the path of the environment file to GITHUB_ENV
-echo "archive.env" >> $GITHUB_ENV
+echo "ARCHIVE_FILE=$(pwd)/archive.env" >> $GITHUB_ENV
