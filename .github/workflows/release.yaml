@@ -38,6 +38,10 @@ jobs:
           target: ${{ matrix.target }}
           override: true
 
+      - name: Install ARM cross-compiling toolchain
+        if: contains(matrix.target, 'arm-unknown-linux-musleabihf')
+        run: sudo apt-get update && sudo apt-get install gcc-arm-linux-gnueabihf
+
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
 
