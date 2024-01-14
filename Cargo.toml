@@ -9,6 +9,9 @@ repository = "https://github.com/lvillis/tcping-rs"
 homepage = "https://github.com/lvillis/tcping-rs"
 documentation = "https://github.com/lvillis/tcping-rs/README.md"
 
+[workspace]
+members = [".", "bin/ref-type"]
+
 [dependencies]
 clap = { version = "4.4.16", features = ["derive"] }
 ctrlc = "3.4.2"
