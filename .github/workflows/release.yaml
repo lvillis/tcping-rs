@@ -93,3 +93,5 @@ jobs:
           draft: false
           files: ${{ steps.package.outputs.archive }}
           prerelease: ${{ steps.ref-type.outputs.value != 'release' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
