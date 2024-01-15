@@ -1,6 +1,6 @@
 [package]
 name = "tcping"
-version = "0.0.1"
+version = "1.0.0"
 authors = ["lvillis<lvillis@outlook.com>"]
 edition = "2021"
 description = "A tool for testing native-to-target port latency, using Rust."
