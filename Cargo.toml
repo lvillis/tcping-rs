@@ -14,4 +14,4 @@ members = [".", "bin/ref-type"]
 
 [dependencies]
 clap = { version = "4.5.2", features = ["derive"] }
-ctrlc = "3.4.2"
+ctrlc = "3.4.4"
