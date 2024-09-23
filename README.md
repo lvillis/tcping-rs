@@ -58,3 +58,9 @@ Where:
 ## About
 
 This tool allows you to measure the latency to a server using TCP. It is built with Rust and uses the clap library for command line argument parsing.
+
+## Special thanks
+
+[![Jetbrains Logo](https://krwu.github.io/img/jetbrains.svg)](https://www.jetbrains.com/?from=init-rs)
+
+Thanks to [Jetbrains](https://www.jetbrains.com/?from=tcping-rs) for supporting this small open source project!
