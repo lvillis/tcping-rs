@@ -1,6 +1,6 @@
 [package]
 name = "tcping"
-version = "1.0.1"
+version = "1.1.0"
 authors = ["lvillis<lvillis@outlook.com>"]
 edition = "2021"
 description = "A tool for testing native-to-target port latency, using Rust."
@@ -13,6 +13,7 @@ documentation = "https://github.com/lvillis/tcping-rs/README.md"
 members = [".", "bin/ref-type"]
 
 [dependencies]
-chrono = "0.4"
 clap = { version = "4.5.18", features = ["derive"] }
 ctrlc = "3.4.5"
+serde = { version = "1.0.210", features = ["derive"] }
+serde_json = "1.0.128"
