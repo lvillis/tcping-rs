@@ -1,8 +1,12 @@
+use chrono::prelude::*;
 use clap::Parser;
 use std::{
-    net::{TcpStream, ToSocketAddrs},
-    sync::atomic::{AtomicBool, Ordering},
-    sync::Arc,
+    io,
+    net::{SocketAddr, TcpStream, ToSocketAddrs},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     thread,
     time::{Duration, Instant},
 };
@@ -22,10 +26,112 @@ struct Args {
     /// Ping continuously until interrupted
     #[clap(short = 't', long)]
     continuous: bool,
+
+    /// output format
+    #[clap(short = 'o', long, default_value_t = String::from("text"))]
+    output: String,
+}
+
+fn local_time<'a>() -> chrono::format::DelayedFormat<chrono::format::StrftimeItems<'a>> {
+    let local: DateTime<Local> = Local::now();
+    local.format("%Y-%m-%d %H:%M:%S")
+}
+enum Output {
+    Text,
+    Json,
+    Csv,
+}
+impl Output {
+    fn eprint(&self, e: &str) {
+        match self {
+            Output::Text => eprintln!("Error: {}", e),
+            Output::Json => println!(
+                "{{\"type\":\"error\",\"time\":\"{}\",\"error\":\"{}\"}}",
+                local_time(),
+                e
+            ),
+            Output::Csv => println!("error,{},{}", local_time(), e),
+        }
+    }
+    fn newline(&self) {
+        match self {
+            Output::Text => println!(),
+            Output::Json => (),
+            Output::Csv => (),
+        }
+    }
+    fn probing(&self, addr: &SocketAddr, duration: f64) {
+        match self {
+            Output::Text => println!(
+                "Probing {}/tcp - Port is open - time={:.3} ms",
+                addr, duration
+            ),
+            Output::Json => {
+                println!(
+                "{{\"type\":\"probing\",\"time\":\"{}\",\"address\":\"{}\",\"duration\":{:.3}}}",
+                local_time(),addr, duration
+            )
+            }
+            Output::Csv => println!("probing,{},{},{:.3}", local_time(), addr, duration),
+        }
+    }
+    fn eprobing(&self, addr: &SocketAddr, e: io::Error) {
+        match self {
+            Output::Text => println!("Probing {}/tcp - error: {}", addr, e),
+            Output::Json => println!(
+                "{{\"type\":\"error\",\"time\":\"{}\",\"address\":\"{}\",\"error\":\"{}\"}}",
+                local_time(),
+                addr,
+                e
+            ),
+            Output::Csv => println!("error,{},{},{}", local_time(), addr, e),
+        }
+    }
+    fn print(&self, s: &str) {
+        match self {
+            Output::Text => println!("{}", s),
+            Output::Json => (),
+            Output::Csv => (),
+        }
+    }
+    fn stat1(&self, total_attempts: usize, successful_pings: usize) {
+        let pect = 100.0 * (1.0 - (successful_pings as f64 / total_attempts as f64));
+        match self {
+            Output::Text => println!(
+                "{} probes sent, {} successful, {:.2}% packet loss",
+                total_attempts, successful_pings, pect
+            ),
+            Output::Json => println!(
+                "{{\"type\":\"statistics\",\"time\":\"{}\",\"total_attempts\":{},\"successful_pings\":{},\"loss_percent\":{:.2}}}",
+                local_time(),total_attempts, successful_pings,pect
+            ),
+            Output::Csv => println!("statistics,{},{},{},{:.2}", local_time(), total_attempts, successful_pings,pect),
+        }
+    }
+    fn stat2(&self, min_duration: f64, avg_duration: f64, max_duration: f64) {
+        match self {
+            Output::Text => println!(
+                "Round-trip min/avg/max = {:.3}/{:.3}/{:.3} ms",
+                min_duration, avg_duration, max_duration
+            ),
+            Output::Json => println!(
+                "{{\"type\":\"roundtrip\",\"time\":\"{}\",\"min\":{:.3},\"avg\":{:.3},\"max\":{:.3}}}",
+                local_time(),min_duration,avg_duration,max_duration
+            ),
+            Output::Csv => println!("roundtrip,{},{:.3},{:.3},{:.3}", local_time(), min_duration, avg_duration,max_duration),
+        }
+    }
 }
 
 fn main() {
     let args = Args::parse();
+
+    let output = match args.output.as_str() {
+        "text" => Output::Text,
+        "json" => Output::Json,
+        "csv" => Output::Csv,
+        _ => panic!("unsupported output format"),
+    };
 
     // Validate and resolve the address
     let addr = match args.address.to_socket_addrs() {
@@ -35,19 +141,19 @@ fn main() {
                 addr
             }
             None => {
-                eprintln!("Error: Unable to resolve address");
+                output.eprint("Unable to resolve address");
                 return;
             }
         },
         Err(_) => {
-            eprintln!("Error: Invalid address format");
+            output.eprint("Invalid address format");
             return;
         }
     };
 
     // Validate the port
     if addr.port() == 0 {
-        eprintln!("Error: Invalid port number");
+        output.eprint("Invalid port number");
         return;
     }
 
@@ -61,10 +167,10 @@ fn main() {
     .expect("Error setting Ctrl-C handler");
 
     if args.continuous {
-        println!();
-        println!("** Pinging continuously.  Press control-c to stop **");
+        output.newline();
+        eprintln!("** Pinging continuously.  Press control-c to stop **");
     }
-    println!();
+    output.newline();
 
     let mut successful_pings = 0;
     let mut total_duration = 0f64;
@@ -83,17 +189,10 @@ fn main() {
                 max_duration = max_duration.max(duration);
                 total_duration += duration;
                 successful_pings += 1;
-                println!(
-                    "Probing {}/tcp - Port is open - time={:.4}ms",
-                    addr, duration
-                );
+                output.probing(&addr, duration);
             }
-            Err(_) => {
-                let duration = timeout.as_micros() as f64 / 1000.0;
-                println!(
-                    "Probing {}/tcp - No response - time={:.4}ms",
-                    addr, duration
-                );
+            Err(e) => {
+                output.eprobing(&addr, e);
             }
         }
 
@@ -106,21 +205,13 @@ fn main() {
         0.0
     };
 
-    println!("\n--- {} tcping statistics ---", addr);
-    println!(
-        "{} probes sent, {} successful, {:.2}% packet loss",
-        total_attempts,
-        successful_pings,
-        100.0 * (1.0 - (successful_pings as f64 / total_attempts as f64))
-    );
+    output.print(format!("\n--- {} tcping statistics ---", addr).as_str());
+    output.stat1(total_attempts, successful_pings);
 
     if successful_pings > 0 {
-        println!(
-            "Round-trip min/avg/max = {:.4}ms/{:.4}ms/{:.4}ms",
-            min_duration, avg_duration, max_duration
-        );
+        output.stat2(min_duration, avg_duration, max_duration);
     }
-    println!();
+    output.newline();
 }
 
 #[cfg(test)]
