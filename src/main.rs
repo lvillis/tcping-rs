@@ -26,6 +26,14 @@ struct Args {
     /// Output mode: normal, json, or csv
     #[arg(short = 'o', long, value_enum, default_value_t = OutputMode::Normal)]
     output_mode: OutputMode,
+
+    /// Exit immediately after a successful probe
+    #[arg(short = 'e', long)]
+    exit_on_success: bool,
+
+    /// Calculate and display jitter
+    #[arg(short = 'j', long)]
+    jitter: bool,
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
@@ -39,6 +47,7 @@ enum OutputMode {
 struct PingResult {
     success: bool,
     duration_ms: f64,
+    jitter_ms: Option<f64>,
     addr: std::net::SocketAddr,
 }
 
@@ -84,7 +93,7 @@ fn main() {
     ctrlc::set_handler(move || {
         r.store(false, Ordering::SeqCst);
     })
-    .expect("Error setting Ctrl-C handler");
+        .expect("Error setting Ctrl-C handler");
 
     if args.continuous && args.output_mode == OutputMode::Normal {
         println!();
@@ -113,27 +122,58 @@ fn main() {
                 total_duration += duration;
                 successful_pings += 1;
 
+                let avg_duration = total_duration / successful_pings as f64;
+                let jitter = if args.jitter {
+                    Some((duration - avg_duration).abs())
+                } else {
+                    None
+                };
+
                 let result = PingResult {
                     success: true,
                     duration_ms: duration,
+                    jitter_ms: jitter,
                     addr,
                 };
                 results.push(result.clone());
 
                 match args.output_mode {
                     OutputMode::Normal => {
-                        println!(
-                            "Probing {}/tcp - Port is open - time={:.4}ms",
-                            addr, duration
-                        );
+                        if args.jitter {
+                            println!(
+                                "Probing {}/tcp - Port is open - time={:.4}ms jitter={:.4}ms",
+                                addr,
+                                duration,
+                                jitter.unwrap_or(0.0)
+                            );
+                        } else {
+                            println!(
+                                "Probing {}/tcp - Port is open - time={:.4}ms",
+                                addr, duration
+                            );
+                        }
                     }
                     OutputMode::Json => {
                         let json = serde_json::to_string(&result).unwrap();
                         println!("{}", json);
                     }
                     OutputMode::Csv => {
-                        println!("{},{},{:.4}", addr, "open", duration);
+                        if args.jitter {
+                            println!(
+                                "{},{},{:.4},{:.4}",
+                                addr,
+                                "open",
+                                duration,
+                                jitter.unwrap_or(0.0)
+                            );
+                        } else {
+                            println!("{},{},{:.4}", addr, "open", duration);
+                        }
                     }
+                }
+
+                if args.exit_on_success {
+                    break;
                 }
             }
             Err(_) => {
@@ -142,6 +182,7 @@ fn main() {
                 let result = PingResult {
                     success: false,
                     duration_ms: duration,
+                    jitter_ms: None,
                     addr,
                 };
                 results.push(result.clone());
@@ -164,67 +205,92 @@ fn main() {
             }
         }
 
+        if !args.continuous && total_attempts >= args.count {
+            break;
+        }
+
         thread::sleep(Duration::from_secs(1));
     }
 
-    let avg_duration = if successful_pings > 0 {
-        total_duration / successful_pings as f64
-    } else {
-        0.0
-    };
-
-    let packet_loss = 100.0 * (1.0 - (successful_pings as f64 / total_attempts as f64));
-
-    let summary = Summary {
-        addr,
-        total_attempts,
-        successful_pings,
-        packet_loss,
-        min_duration_ms: if successful_pings > 0 {
-            min_duration
+    if args.output_mode == OutputMode::Normal {
+        let avg_duration = if successful_pings > 0 {
+            total_duration / successful_pings as f64
         } else {
             0.0
-        },
-        avg_duration_ms: avg_duration,
-        max_duration_ms: if successful_pings > 0 {
-            max_duration
-        } else {
-            0.0
-        },
-    };
+        };
 
-    match args.output_mode {
-        OutputMode::Normal => {
-            println!("\n--- {} tcping statistics ---", addr);
+        let packet_loss = 100.0 * (1.0 - (successful_pings as f64 / total_attempts as f64));
+
+        let summary = Summary {
+            addr,
+            total_attempts,
+            successful_pings,
+            packet_loss,
+            min_duration_ms: if successful_pings > 0 {
+                min_duration
+            } else {
+                0.0
+            },
+            avg_duration_ms: avg_duration,
+            max_duration_ms: if successful_pings > 0 {
+                max_duration
+            } else {
+                0.0
+            },
+        };
+
+        println!("\n--- {} tcping statistics ---", addr);
+        println!(
+            "{} probes sent, {} successful, {:.2}% packet loss",
+            summary.total_attempts, summary.successful_pings, summary.packet_loss
+        );
+        if summary.successful_pings > 0 {
             println!(
-                "{} probes sent, {} successful, {:.2}% packet loss",
-                total_attempts, successful_pings, packet_loss
+                "Round-trip min/avg/max = {:.4}ms/{:.4}ms/{:.4}ms",
+                summary.min_duration_ms, summary.avg_duration_ms, summary.max_duration_ms
             );
+        }
+        println!();
+    } else if args.output_mode == OutputMode::Json {
+        let summary = Summary {
+            addr,
+            total_attempts,
+            successful_pings,
+            packet_loss: 100.0 * (1.0 - (successful_pings as f64 / total_attempts as f64)),
+            min_duration_ms: if successful_pings > 0 {
+                min_duration
+            } else {
+                0.0
+            },
+            avg_duration_ms: if successful_pings > 0 {
+                total_duration / successful_pings as f64
+            } else {
+                0.0
+            },
+            max_duration_ms: if successful_pings > 0 {
+                max_duration
+            } else {
+                0.0
+            },
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        println!("{}", json);
+    } else if args.output_mode == OutputMode::Csv {
+        println!("address,total_probes,successful_probes,packet_loss,min_rtt,avg_rtt,max_rtt");
+        println!(
+            "{},{},{},{:.2},{:.4},{:.4},{:.4}",
+            addr,
+            total_attempts,
+            successful_pings,
+            100.0 * (1.0 - (successful_pings as f64 / total_attempts as f64)),
+            if successful_pings > 0 { min_duration } else { 0.0 },
             if successful_pings > 0 {
-                println!(
-                    "Round-trip min/avg/max = {:.4}ms/{:.4}ms/{:.4}ms",
-                    min_duration, avg_duration, max_duration
-                );
-            }
-            println!();
-        }
-        OutputMode::Json => {
-            let json = serde_json::to_string(&summary).unwrap();
-            println!("{}", json);
-        }
-        OutputMode::Csv => {
-            println!("address,total_probes,successful_probes,packet_loss,min_rtt,avg_rtt,max_rtt");
-            println!(
-                "{},{},{},{:.2},{:.4},{:.4},{:.4}",
-                addr,
-                total_attempts,
-                successful_pings,
-                packet_loss,
-                summary.min_duration_ms,
-                summary.avg_duration_ms,
-                summary.max_duration_ms
-            );
-        }
+                total_duration / successful_pings as f64
+            } else {
+                0.0
+            },
+            if successful_pings > 0 { max_duration } else { 0.0 }
+        );
     }
 }
 
@@ -240,6 +306,8 @@ mod tests {
         assert_eq!(args.count, 5);
         assert!(!args.continuous);
         assert_eq!(args.output_mode, OutputMode::Normal);
+        assert!(!args.exit_on_success);
+        assert!(!args.jitter);
     }
 
     #[test]
@@ -249,6 +317,8 @@ mod tests {
         assert_eq!(args.count, 4);
         assert!(args.continuous);
         assert_eq!(args.output_mode, OutputMode::Normal);
+        assert!(!args.exit_on_success);
+        assert!(!args.jitter);
     }
 
     #[test]
@@ -262,5 +332,17 @@ mod tests {
     fn test_output_mode_parsing() {
         let args = Args::parse_from("tcping 127.0.0.1:80 -o json".split_whitespace());
         assert_eq!(args.output_mode, OutputMode::Json);
+    }
+
+    #[test]
+    fn test_exit_on_success_parsing() {
+        let args = Args::parse_from("tcping 127.0.0.1:80 -e".split_whitespace());
+        assert!(args.exit_on_success);
+    }
+
+    #[test]
+    fn test_jitter_parsing() {
+        let args = Args::parse_from("tcping 127.0.0.1:80 -j".split_whitespace());
+        assert!(args.jitter);
     }
 }
