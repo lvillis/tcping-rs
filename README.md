@@ -44,15 +44,18 @@ To run the executable, navigate to the ./target/release directory and run:
 ## Usage
 
 ```bash
-tcping <host:port> [-c count] [-t]
+tcping <host:port> [-c count] [-t] [-e] [-j] [-o mode]
 ```
 
 Where:
-* `host:port` is the host and port to ping
-* `-c count` is the number of times to ping the host (default: 4)
-* `-t` enables continuous pinging
-* `-h` displays help
-* `-V` displays version
+- `host:port` is the host and port to ping
+- `-c count` specifies the number of times to ping the host (default: 4)
+- `-t` enables continuous pinging
+- `-e` exits immediately after a successful probe
+- `-j` calculates and displays jitter
+- `-o mode` sets the output mode (`normal`, `json`, `csv`)
+- `-h` displays help
+- `-V` displays version
 
 
 ## About
