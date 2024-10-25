@@ -6,7 +6,7 @@ edition = "2018"
 publish = false
 
 [dependencies]
-regex = "1.11.0"
+regex = "1.11.1"
 structopt = "0.3.21"
 
 [dev-dependencies]
