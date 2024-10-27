@@ -418,7 +418,7 @@ dependencies = [
 
 [[package]]
 name = "tcping"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "clap 4.5.20",
  "ctrlc",

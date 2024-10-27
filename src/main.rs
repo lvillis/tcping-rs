@@ -60,10 +60,13 @@ struct Summary {
     min_duration_ms: f64,
     avg_duration_ms: f64,
     max_duration_ms: f64,
+    resolve_time_ms: f64,
 }
 
 fn main() {
     let args = Args::parse();
+
+    let resolve_start = Instant::now();
 
     // Validate and resolve the address
     let addr = match args.address.to_socket_addrs() {
@@ -79,6 +82,8 @@ fn main() {
             return;
         }
     };
+
+    let resolve_duration = resolve_start.elapsed().as_micros() as f64 / 1000.0;
 
     // Validate the port
     if addr.port() == 0 {
@@ -101,6 +106,7 @@ fn main() {
     }
     if args.output_mode == OutputMode::Normal {
         println!();
+        println!("Resolved address in {:.4} ms", resolve_duration);
     }
 
     let mut successful_pings = 0;
@@ -237,6 +243,7 @@ fn main() {
             } else {
                 0.0
             },
+            resolve_time_ms: resolve_duration,
         };
 
         println!("\n--- {} tcping statistics ---", addr);
@@ -250,6 +257,7 @@ fn main() {
                 summary.min_duration_ms, summary.avg_duration_ms, summary.max_duration_ms
             );
         }
+        println!("Address resolved in {:.4} ms", summary.resolve_time_ms);
         println!();
     } else if args.output_mode == OutputMode::Json {
         let summary = Summary {
@@ -272,13 +280,14 @@ fn main() {
             } else {
                 0.0
             },
+            resolve_time_ms: resolve_duration,
         };
         let json = serde_json::to_string(&summary).unwrap();
         println!("{}", json);
     } else if args.output_mode == OutputMode::Csv {
-        println!("address,total_probes,successful_probes,packet_loss,min_rtt,avg_rtt,max_rtt");
+        println!("address,total_probes,successful_probes,packet_loss,min_rtt,avg_rtt,max_rtt,resolve_time_ms");
         println!(
-            "{},{},{},{:.2},{:.4},{:.4},{:.4}",
+            "{},{},{},{:.2},{:.4},{:.4},{:.4},{:.4}",
             addr,
             total_attempts,
             successful_pings,
@@ -289,7 +298,8 @@ fn main() {
             } else {
                 0.0
             },
-            if successful_pings > 0 { max_duration } else { 0.0 }
+            if successful_pings > 0 { max_duration } else { 0.0 },
+            resolve_duration
         );
     }
 }
