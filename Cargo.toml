@@ -7,7 +7,7 @@ description = "A tool for testing native-to-target port latency, using Rust."
 license = "MIT"
 repository = "https://github.com/lvillis/tcping-rs"
 homepage = "https://github.com/lvillis/tcping-rs"
-documentation = "https://github.com/lvillis/tcping-rs/README.md"
+documentation = "https://github.com/lvillis/tcping-rs/blob/main/README.md"
 
 [workspace]
 members = [".", "bin/ref-type"]
