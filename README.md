@@ -21,6 +21,23 @@
 
 ---
 
+## Example
+
+```bash
+$ tcping github.com:443
+
+Resolved address in 0.9340 ms
+Probing 140.82.113.4:443/tcp - Port is open - time=12.7510ms
+Probing 140.82.113.4:443/tcp - Port is open - time=12.4270ms
+Probing 140.82.113.4:443/tcp - Port is open - time=11.4410ms
+Probing 140.82.113.4:443/tcp - Port is open - time=12.7510ms
+
+--- 140.82.113.4:443 tcping statistics ---
+4 probes sent, 4 successful, 0.00% packet loss
+Round-trip min/avg/max = 11.4410ms/12.3425ms/12.7510ms
+Address resolved in 0.9340 ms
+```
+
 ## Installation
 
 This project is built with Rust and Cargo. To install Rust and Cargo, follow the instructions [here](https://www.rust-lang.org/tools/install).
