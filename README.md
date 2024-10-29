@@ -2,7 +2,7 @@
 
 <h1 align=center><code>tcping-rs</code></h1>
 
-<p align=center>🌐 A TCP ping utility to determine reachability of a TCP port, using Rust.</p>
+<p align=center>🛠️ A TCP ping utility to determine reachability of a TCP port, using Rust.</p>
 
 <div align=center>
   <a href="https://crates.io/crates/tcping">
