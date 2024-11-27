@@ -14,12 +14,36 @@
   <a href="https://github.com/lvillis/tcping-rs/actions">
     <img src="https://github.com/lvillis/tcping-rs/actions/workflows/ci.yaml/badge.svg" alt="build status">
   </a>
+  <a href="https://hub.docker.com/r/lvillis/tcping">
+    <img src="https://img.shields.io/docker/pulls/lvillis/tcping?style=flat-square" alt="docker pulls">
+  </a>
+  <a href="https://hub.docker.com/r/lvillis/tcping">
+    <img src="https://img.shields.io/docker/image-size/lvillis/tcping/latest?style=flat-square" alt="image size">
+  </a>
   <a href="mailto:lvillis@outlook.com?subject=Thanks%20for%20tcping-rs!">
     <img src="https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg" alt="say thanks">
   </a>
+
 </div>
 
 ---
+
+## Usage
+
+```bash
+tcping <host:port> [-c count] [-t] [-e] [-j] [-o mode]
+```
+
+Where:
+
+- `host:port` is the host and port to ping
+- `-c count` specifies the number of times to ping the host (default: 4)
+- `-t` enables continuous pinging
+- `-e` exits immediately after a successful probe
+- `-j` calculates and displays jitter
+- `-o mode` sets the output mode (`normal`, `json`, `csv`)
+- `-h` displays help
+- `-V` displays version
 
 ## Example
 
@@ -40,44 +64,27 @@ Address resolved in 0.9340 ms
 
 ## Installation
 
-This project is built with Rust and Cargo. To install Rust and Cargo, follow the instructions [here](https://www.rust-lang.org/tools/install).
+### Download from Releases
 
-To build the project, navigate to the project directory and run:
+Download the precompiled binaries from the [Releases Page](https://github.com/lvillis/tcping-rs/releases).
 
-```bash
-cargo build --release
+* Navigate to the [Releases](https://github.com/lvillis/tcping-rs/releases) section.
+* Download the appropriate binary for your operating system.
+* Extract the executable and place it in a directory included in your PATH.
+
+### Using Docker
+
+Run `tcping-rs` using the Docker image:
+
+```shell
+docker run --rm docker.io/lvillis/tcping-rs:latest <host:port> [options]
+
 ```
-
-This will create an executable in the ./target/release directory.
-
-## Running
-
-To run the executable, navigate to the ./target/release directory and run:
-
-```bash
-./target/release/tcping
-```
-
-## Usage
-
-```bash
-tcping <host:port> [-c count] [-t] [-e] [-j] [-o mode]
-```
-
-Where:
-- `host:port` is the host and port to ping
-- `-c count` specifies the number of times to ping the host (default: 4)
-- `-t` enables continuous pinging
-- `-e` exits immediately after a successful probe
-- `-j` calculates and displays jitter
-- `-o mode` sets the output mode (`normal`, `json`, `csv`)
-- `-h` displays help
-- `-V` displays version
-
 
 ## About
 
-This tool allows you to measure the latency to a server using TCP. It is built with Rust and uses the clap library for command line argument parsing.
+This tool allows you to measure the latency to a server using TCP. It is built with Rust and uses the clap library for
+command line argument parsing.
 
 ## Special thanks
 
