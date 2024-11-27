@@ -5,12 +5,19 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-      time: "09:00"
+      time: "07:00"
       timezone: "Asia/Shanghai"
+
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
       interval: "daily"
-      time: "09:00"
+      time: "07:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 20
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "07:00"
+      timezone: "Asia/Shanghai"
