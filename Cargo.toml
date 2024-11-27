@@ -1,9 +1,9 @@
 [package]
 name = "tcping"
-version = "1.2.3"
+version = "1.2.4"
 authors = ["lvillis<lvillis@outlook.com>"]
 edition = "2021"
-description = "🛠️ A tool for testing native-to-target port latency, using Rust."
+description = "🛠️ tcping-rs: Rust (rs) TCP Ping (tcping) Utility for Port Reachability."
 license = "MIT"
 repository = "https://github.com/lvillis/tcping-rs"
 homepage = "https://github.com/lvillis/tcping-rs"
@@ -13,7 +13,7 @@ documentation = "https://github.com/lvillis/tcping-rs/blob/main/README.md"
 members = [".", "bin/ref-type"]
 
 [dependencies]
-clap = { version = "4.5.21", features = ["derive"] }
-ctrlc = "3.4.5"
-serde = { version = "1.0.215", features = ["derive"] }
-serde_json = "1.0.133"
+clap = { version = "4.5.21", default-features = false, features = ["std", "color", "usage", "help", "suggestions", "error-context", "derive"] }
+ctrlc = { version = "3.4.5", default-features = false }
+serde = { version = "1.0.214", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0.132", default-features = false, features = ["std"] }
