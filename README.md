@@ -77,7 +77,7 @@ Download the precompiled binaries from the [Releases Page](https://github.com/lv
 Run `tcping-rs` using the Docker image:
 
 ```shell
-docker run --rm docker.io/lvillis/tcping-rs:latest <host:port> [options]
+docker run --rm docker.io/lvillis/tcping:latest <host:port> [options]
 
 ```
 
