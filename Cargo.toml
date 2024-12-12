@@ -15,5 +15,5 @@ members = [".", "bin/ref-type"]
 [dependencies]
 clap = { version = "4.5.23", default-features = false, features = ["std", "color", "usage", "help", "suggestions", "error-context", "derive"] }
 ctrlc = { version = "3.4.5", default-features = false }
-serde = { version = "1.0.214", default-features = false, features = ["derive"] }
+serde = { version = "1.0.216", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0.132", default-features = false, features = ["std"] }
