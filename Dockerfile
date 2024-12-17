@@ -9,7 +9,6 @@ RUN set -ex \
 
 WORKDIR /opt/app
 
-COPY bin/ /opt/app/bin/
 COPY Cargo.toml /opt/app/Cargo.toml
 COPY Cargo.lock /opt/app/Cargo.lock
 
