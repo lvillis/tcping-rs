@@ -1,0 +1,172 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [1.2.4] - 2024-11-27
+
+### ⚙️ Miscellaneous Tasks
+
+- *(docs)* Update README.md
+
+## [1.2.3] - 2024-10-29
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version
+- *(docs)* Update description
+
+## [1.2.2] - 2024-10-27
+
+### ⚙️ Miscellaneous Tasks
+
+- *(docs)* Add example
+
+## [1.2.1] - 2024-10-27
+
+### 🚀 Features
+
+- Add parsing time
+
+### 🐛 Bug Fixes
+
+- Typo
+
+### ⚙️ Miscellaneous Tasks
+
+- *(docs)* Update README.md
+
+## [1.2.0] - 2024-09-24
+
+### 🚀 Features
+
+- Add exit on success and jitter calculation options
+
+## [1.1.0] - 2024-09-23
+
+### 🚀 Features
+
+- Add two output format: json,csv
+
+### ⚙️ Miscellaneous Tasks
+
+- *(docs)* Update README.md
+- *(docs)* Update README.md
+
+## [1.0.1] - 2024-01-17
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version from 1.0.0 to 1.0.1
+
+## [1.0.0] - 2024-01-15
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version from 0.0.1 to 1.0.0
+
+## [0.0.17] - 2024-01-14
+
+### 🧪 Testing
+
+- Add args parsing and domain resolution tests
+
+### ⚙️ Miscellaneous Tasks
+
+- Add README.md
+
+## [0.0.16] - 2024-01-14
+
+### 🐛 Bug Fixes
+
+- Actions
+
+## [0.0.15] - 2024-01-14
+
+### 🐛 Bug Fixes
+
+- Actions
+
+## [0.0.14] - 2024-01-14
+
+### 🐛 Bug Fixes
+
+- Actions
+
+## [0.0.13] - 2024-01-14
+
+### 🐛 Bug Fixes
+
+- Actions
+
+## [0.0.12] - 2024-01-14
+
+### 🐛 Bug Fixes
+
+- Actions
+
+## [0.0.11] - 2024-01-14
+
+### 🐛 Bug Fixes
+
+- Actions
+
+## [0.0.10] - 2024-01-14
+
+### 🐛 Bug Fixes
+
+- Actions
+
+## [0.0.9] - 2024-01-14
+
+### 🐛 Bug Fixes
+
+- Actions
+
+## [0.0.8] - 2024-01-14
+
+### 🐛 Bug Fixes
+
+- Actions
+- Actions
+
+## [0.0.7] - 2024-01-14
+
+### 🐛 Bug Fixes
+
+- Actions
+- Actions
+
+## [0.0.5] - 2024-01-14
+
+### 🐛 Bug Fixes
+
+- Actions
+
+## [0.0.4] - 2024-01-14
+
+### 🐛 Bug Fixes
+
+- Actions
+
+## [0.0.3] - 2024-01-14
+
+### 🐛 Bug Fixes
+
+- Actions
+
+## [0.0.2] - 2024-01-14
+
+### 🐛 Bug Fixes
+
+- Actions
+
+## [0.0.1] - 2024-01-14
+
+### 🚀 Features
+
+- Add -c and -t parameters
+
+### ⚙️ Miscellaneous Tasks
+
+- Init commit
+- Add actions
