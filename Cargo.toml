@@ -8,6 +8,15 @@ license = "MIT"
 repository = "https://github.com/lvillis/tcping-rs"
 homepage = "https://github.com/lvillis/tcping-rs"
 documentation = "https://github.com/lvillis/tcping-rs/blob/main/README.md"
+exclude = [
+    "/docs/",
+    "/tests/",
+    "/.config/",
+    "/.github/",
+    "/.justfile",
+    "/rust-toolchain.toml",
+    "/.gitignore",
+]
 
 [dependencies]
 clap = { version = "4.5.23", default-features = false, features = ["std", "color", "usage", "help", "suggestions", "error-context", "derive"] }
