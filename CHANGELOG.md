@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.6] - 2025-02-24
+
+### ⚙️ Miscellaneous Tasks
+
+- Update Cargo.toml
+- *(ci)* Update Dockerfile
+- *(ci)* Add paths-ignore
+- Bump rust edition from 2021 to 2024
+
 ## [1.2.5] - 2024-12-17
 
 ### 🚀 Features
@@ -15,6 +24,7 @@ All notable changes to this project will be documented in this file.
 - Use cargo-release
 - Add CHANGELOG.md
 - *(ci)* Use cross
+- Release tcping version 1.2.5
 
 ## [1.2.4] - 2024-11-27
 
