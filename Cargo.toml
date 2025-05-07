@@ -20,7 +20,7 @@ exclude = [
 
 [dependencies]
 clap = { version = "4.5.37", default-features = false, features = ["std", "color", "usage", "help", "suggestions", "error-context", "derive"] }
-ctrlc = { version = "3.4.6", default-features = false }
+tokio = { version = "1.45.0", default-features = false, features = ["rt-multi-thread", "macros", "net", "time", "signal"] }
 serde = { version = "1.0.219", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0.140", default-features = false, features = ["std"] }
 
@@ -29,4 +29,4 @@ tag-prefix = ""
 tag-name = "{{prefix}}{{version}}"
 pre-release-commit-message = "chore: release {{crate_name}} version {{version}}"
 tag-message = "chore: release {{crate_name}} version {{version}}"
-pre-release-hook = ["git", "cliff", "-o", "CHANGELOG.md", "--tag", "{{version}}" ]
+pre-release-hook = ["git", "cliff", "-o", "CHANGELOG.md", "--tag", "{{version}}"]
