@@ -2,11 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.8] - 2025-05-07
+
+### 🚀 Features
+
+- Add exit-codes
+
 ## [1.2.7] - 2025-05-07
 
 ### 🚜 Refactor
 
 - Migrate tcping core to async Tokio loop
+
+### ⚙️ Miscellaneous Tasks
+
+- Release tcping version 1.2.7
 
 ## [1.2.6] - 2025-02-24
 
