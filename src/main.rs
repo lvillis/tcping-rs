@@ -1,14 +1,16 @@
-//! tcping-rs — Async implementation based on Tokio.
+//! tcping-rs — Async implementation based on Tokio, now with exit-code semantics.
 //!
-//! The original blocking `TcpStream::connect_timeout` is replaced by
-//! an asynchronous combination of **Tokio + `timeout` + `select!`**.
-//! All CLI flags, output formats, statistics logic and unit tests
-//! remain intact so you can drop‑in replace your previous version.
+//! Exit codes  
+//! * **0** – every probe succeeded (target fully reachable)  
+//! * **1** – at least one probe failed **or** a fatal argument/IO error occurred
+//!
+//! All previous logic, output, and unit tests are preserved.
 
 use clap::{Parser, ValueEnum};
 use serde::Serialize;
 use std::{
     net::{SocketAddr, ToSocketAddrs},
+    process,
     time::Instant,
 };
 use tokio::{
@@ -16,6 +18,8 @@ use tokio::{
     signal,
     time::{Duration, Instant as TokioInstant, sleep, timeout},
 };
+
+/* ───────────── CLI ───────────── */
 
 /// CLI arguments parsed by `clap`.
 #[derive(Parser, Debug)]
@@ -28,7 +32,7 @@ struct Args {
     #[arg(short = 'c', long, default_value_t = 4)]
     count: usize,
 
-    /// Keep probing until Ctrl‑C (`-t`)
+    /// Keep probing until Ctrl-C (`-t`)
     #[arg(short = 't', long)]
     continuous: bool,
 
@@ -40,11 +44,11 @@ struct Args {
     #[arg(short = 'e', long)]
     exit_on_success: bool,
 
-    /// Calculate and print per‑probe jitter (`-j`)
+    /// Calculate and print per-probe jitter (`-j`)
     #[arg(short = 'j', long)]
     jitter: bool,
 
-    /// Per‑probe timeout in **milliseconds** (`--timeout-ms`)
+    /// Per-probe timeout in **milliseconds** (`--timeout-ms`)
     #[arg(long, default_value_t = 2000)]
     timeout_ms: u64,
 }
@@ -56,6 +60,8 @@ enum OutputMode {
     Json,
     Csv,
 }
+
+/* ───────────── Data types ───────────── */
 
 /// Result of a single probe, serialisable to JSON/CSV.
 #[derive(Serialize, Clone)]
@@ -79,6 +85,8 @@ struct Summary {
     resolve_time_ms: f64,
 }
 
+/* ───────────── Core helpers ───────────── */
+
 /// Conduct a single asynchronous TCP probe with timeout.
 async fn probe_once(addr: SocketAddr, to: Duration) -> (bool, f64) {
     let start = TokioInstant::now();
@@ -88,42 +96,50 @@ async fn probe_once(addr: SocketAddr, to: Duration) -> (bool, f64) {
     }
 }
 
+/* ───────────── Entry point ───────────── */
+
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
 
     /* ───────────── Address resolution ───────────── */
-    let resolve_start = Instant::now();
+    let res_start = Instant::now();
     let addr = match args.address.to_socket_addrs() {
-        Ok(mut addrs) => addrs.next().expect("failed to resolve hostname"),
+        Ok(mut addrs) => match addrs.next() {
+            Some(a) => a,
+            None => {
+                eprintln!("tcping: unable to resolve address");
+                process::exit(1);
+            }
+        },
         Err(_) => {
-            eprintln!("Error: invalid address");
-            return;
+            eprintln!("tcping: invalid address");
+            process::exit(1);
         }
     };
     if addr.port() == 0 {
-        eprintln!("Error: port cannot be 0");
-        return;
+        eprintln!("tcping: port cannot be 0");
+        process::exit(1);
     }
-    let resolve_time = resolve_start.elapsed().as_secs_f64() * 1_000.0;
+    let resolve_ms = res_start.elapsed().as_secs_f64() * 1_000.0;
     let timeout = Duration::from_millis(args.timeout_ms);
 
     if args.continuous && matches!(args.output_mode, OutputMode::Normal) {
-        println!("\n** Probing continuously — Ctrl‑C to stop **");
+        println!("\n** Probing continuously — Ctrl-C to stop **");
     }
     if matches!(args.output_mode, OutputMode::Normal) {
-        println!("\nResolved address in {:.4} ms", resolve_time);
+        println!("\nResolved address in {:.4} ms", resolve_ms);
     }
 
     /* ───────────── Aggregation variables ───────────── */
-    let mut success = 0usize;
+    let mut successful_pings = 0usize;
+    let mut sent = 0usize;
     let mut total_rtt = 0f64;
     let mut min_rtt = f64::MAX;
     let mut max_rtt = 0f64;
-    let mut sent = 0usize;
-    let mut results: Vec<PingResult> = Vec::new();
+    let mut results: Vec<PingResult> = Vec::new(); // 保留，供后续扩展
 
-    // Ctrl‑C future
+    // Ctrl-C future
     let sigint = signal::ctrl_c();
     tokio::pin!(sigint);
 
@@ -137,66 +153,58 @@ async fn main() {
         let (ok, rtt) = probe_once(addr, timeout).await;
 
         if ok {
-            // success path
-            success += 1;
+            successful_pings += 1;
             min_rtt = min_rtt.min(rtt);
             max_rtt = max_rtt.max(rtt);
             total_rtt += rtt;
+        }
 
-            let avg = total_rtt / success as f64;
-            let jitter = args.jitter.then(|| (rtt - avg).abs());
-
-            let res = PingResult {
-                success: true,
-                duration_ms: rtt,
-                jitter_ms: jitter,
-                addr,
-            };
-            results.push(res.clone());
-
-            match args.output_mode {
-                OutputMode::Normal => {
-                    if let Some(j) = jitter {
-                        println!("Probing {addr}/tcp - open - {rtt:.4} ms jitter={j:.4} ms");
-                    } else {
-                        println!("Probing {addr}/tcp - open - {rtt:.4} ms");
-                    }
-                }
-                OutputMode::Json => println!("{}", serde_json::to_string(&res).unwrap()),
-                OutputMode::Csv => {
-                    if let Some(j) = jitter {
-                        println!("{addr},open,{rtt:.4},{j:.4}");
-                    } else {
-                        println!("{addr},open,{rtt:.4}");
-                    }
-                }
-            }
-
-            if args.exit_on_success {
-                break;
-            }
+        let jitter = if ok && args.jitter && successful_pings > 0 {
+            Some((rtt - total_rtt / successful_pings as f64).abs())
         } else {
-            // failure / timeout path
-            let res = PingResult {
-                success: false,
-                duration_ms: rtt,
-                jitter_ms: None,
-                addr,
-            };
-            results.push(res.clone());
+            None
+        };
 
-            match args.output_mode {
-                OutputMode::Normal => println!("Probing {addr}/tcp - closed - {rtt:.4} ms"),
-                OutputMode::Json => println!("{}", serde_json::to_string(&res).unwrap()),
-                OutputMode::Csv => println!("{addr},closed,{rtt:.4}"),
+        let result = PingResult {
+            success: ok,
+            duration_ms: rtt,
+            jitter_ms: jitter,
+            addr,
+        };
+        results.push(result.clone()); // 逻辑不变，保留向量
+
+        /* per-probe output */
+        match args.output_mode {
+            OutputMode::Normal => {
+                let status = if ok { "open" } else { "closed" };
+                if let Some(j) = jitter {
+                    println!("Probing {addr}/tcp - {status} - {rtt:.4} ms jitter={j:.4} ms");
+                } else {
+                    println!("Probing {addr}/tcp - {status} - {rtt:.4} ms");
+                }
             }
+            OutputMode::Json => println!("{}", serde_json::to_string(&result).unwrap()),
+            OutputMode::Csv => {
+                if let Some(j) = jitter {
+                    println!("{addr},open,{rtt:.4},{j:.4}");
+                } else {
+                    println!(
+                        "{addr},{},{}",
+                        if ok { "open" } else { "closed" },
+                        format!("{rtt:.4}")
+                    );
+                }
+            }
+        }
+
+        if ok && args.exit_on_success {
+            break;
         }
 
         if !args.continuous && sent >= args.count {
             break;
         }
 
-        // wait 1 s or until Ctrl‑C is received
         tokio::select! {
             _ = sleep(Duration::from_secs(1)) => {},
             _ = &mut sigint => break,
@@ -207,16 +215,16 @@ async fn main() {
     let summary = Summary {
         addr,
         total_attempts: sent,
-        successful_pings: success,
-        packet_loss: 100.0 * (1.0 - success as f64 / sent as f64),
-        min_duration_ms: if success > 0 { min_rtt } else { 0.0 },
-        avg_duration_ms: if success > 0 {
-            total_rtt / success as f64
+        successful_pings,
+        packet_loss: 100.0 * (1.0 - successful_pings as f64 / sent as f64),
+        min_duration_ms: if successful_pings > 0 { min_rtt } else { 0.0 },
+        avg_duration_ms: if successful_pings > 0 {
+            total_rtt / successful_pings as f64
         } else {
             0.0
         },
-        max_duration_ms: if success > 0 { max_rtt } else { 0.0 },
-        resolve_time_ms: resolve_time,
+        max_duration_ms: if successful_pings > 0 { max_rtt } else { 0.0 },
+        resolve_time_ms: resolve_ms,
     };
 
     match args.output_mode {
@@ -228,7 +236,7 @@ async fn main() {
             );
             if summary.successful_pings > 0 {
                 println!(
-                    "Round‑trip  min/avg/max = {:.4}/{:.4}/{:.4} ms",
+                    "Round-trip  min/avg/max = {:.4}/{:.4}/{:.4} ms",
                     summary.min_duration_ms, summary.avg_duration_ms, summary.max_duration_ms
                 );
             }
@@ -237,7 +245,7 @@ async fn main() {
         OutputMode::Json => println!("{}", serde_json::to_string(&summary).unwrap()),
         OutputMode::Csv => println!(
             "address,total_probes,successful_probes,packet_loss,min_rtt,avg_rtt,max_rtt,resolve_time_ms\n\
-             {addr},{sent},{success},{:.2},{:.4},{:.4},{:.4},{:.4}",
+             {addr},{sent},{successful_pings},{:.2},{:.4},{:.4},{:.4},{:.4}",
             summary.packet_loss,
             summary.min_duration_ms,
             summary.avg_duration_ms,
@@ -245,9 +253,17 @@ async fn main() {
             summary.resolve_time_ms
         ),
     }
+
+    /* ───────────── Exit code ───────────── */
+    let exit_code = if successful_pings == sent && sent > 0 {
+        0
+    } else {
+        1
+    };
+    process::exit(exit_code);
 }
 
-/* ───────────── Unit tests ───────────── */
+/* ───────────── Unit tests (unchanged) ───────────── */
 #[cfg(test)]
 mod tests {
     use super::*;
