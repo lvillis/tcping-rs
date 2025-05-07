@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.7] - 2025-05-07
+
+### 🚜 Refactor
+
+- Migrate tcping core to async Tokio loop
+
 ## [1.2.6] - 2025-02-24
 
 ### ⚙️ Miscellaneous Tasks
@@ -10,6 +16,7 @@ All notable changes to this project will be documented in this file.
 - *(ci)* Update Dockerfile
 - *(ci)* Add paths-ignore
 - Bump rust edition from 2021 to 2024
+- Release tcping version 1.2.6
 
 ## [1.2.5] - 2024-12-17
 
