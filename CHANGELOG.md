@@ -2,11 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.9] - 2025-05-08
+
+### 🚀 Features
+
+- Add md & color formats
+
 ## [1.2.8] - 2025-05-07
 
 ### 🚀 Features
 
 - Add exit-codes
+
+### ⚙️ Miscellaneous Tasks
+
+- Release tcping version 1.2.8
 
 ## [1.2.7] - 2025-05-07
 
