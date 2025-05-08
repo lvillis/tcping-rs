@@ -23,6 +23,8 @@ clap = { version = "4.5.37", default-features = false, features = ["std", "color
 tokio = { version = "1.45.0", default-features = false, features = ["rt-multi-thread", "macros", "net", "time", "signal"] }
 serde = { version = "1.0.219", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0.140", default-features = false, features = ["std"] }
+thiserror = "2.0.12"
+anyhow = "1.0.98"
 
 [package.metadata.release]
 tag-prefix = ""

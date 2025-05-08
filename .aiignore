@@ -1,0 +1,11 @@
+
+.git/
+.idea/
+LICENSE
+.cargo/
+Cargo.lock
+.github/
+.justfile
+CHANGELOG.md
+README.md
+Dockerfile
