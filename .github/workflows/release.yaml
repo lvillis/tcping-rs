@@ -118,10 +118,20 @@ jobs:
             echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
           fi
 
+      - name: Generate changelog
+        uses: orhun/git-cliff-action@v4
+        id: cliff
+        with:
+          config: cliff.toml
+          args: --latest --tag ${{ github.ref_name }} --strip header
+        env:
+          OUTPUT: RELEASE_NOTES.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: ${{ env.ASSET }}
+          body_path: RELEASE_NOTES.md
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
