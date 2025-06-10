@@ -12,10 +12,11 @@ env:
   PROJECT: tcping
 
 jobs:
-  publish:
-    name: ${{ matrix.target }}
+  build:
+    name: build-${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -55,71 +56,96 @@ jobs:
             use-cross: false
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Set the version
+      - name: Set version
+        id: version
         shell: bash
-        if: env.PROJECT_VERSION == ''
         run: |
-          echo "PROJECT_VERSION=$GITHUB_REF_NAME" >> $GITHUB_ENV
-          echo "version is: ${{ env.PROJECT_VERSION }}"
+          VERSION="${GITHUB_REF#refs/tags/}"
+          echo "PROJECT_VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "VERSION=${VERSION}"          >> "$GITHUB_OUTPUT"
 
-      - name: Install Rust
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
       - name: Setup native compilation
-        if: ${{ matrix.use-cross == false }}
-        shell: bash
-        run: |
-          echo "CARGO=cargo" >> $GITHUB_ENV
+        if: ${{ !matrix.use-cross }}
+        run: echo "CARGO=cargo" >> "$GITHUB_ENV"
 
       - name: Setup cross compilation
-        if: ${{ matrix.use-cross == true }}
+        if: ${{ matrix.use-cross }}
         shell: bash
         run: |
-          dir="$RUNNER_TEMP/cross-download"
-          mkdir "$dir"
-          echo "$dir" >> $GITHUB_PATH
+          dir="$RUNNER_TEMP/cross"
+          mkdir -p "$dir"
+          echo "$dir" >> "$GITHUB_PATH"
           cd "$dir"
-          curl -LO "https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-musl.tar.gz"
-          tar xf cross-x86_64-unknown-linux-musl.tar.gz
-          echo "CARGO=cross" >> $GITHUB_ENV
-          echo "RUSTFLAGS=--cfg ${{ env.PROJECT }}" >> $GITHUB_ENV
-          echo "TARGET_DIR=./target/${{ matrix.target }}" >> $GITHUB_ENV
+          curl -LSf -o cross.tar.gz \
+            https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-musl.tar.gz
+          tar xf cross.tar.gz
+          echo "CARGO=cross" >> "$GITHUB_ENV"
+          echo "RUSTFLAGS=--cfg ${{ env.PROJECT }}" >> "$GITHUB_ENV"
+          echo "TARGET_DIR=./target/${{ matrix.target }}" >> "$GITHUB_ENV"
 
       - name: Build
         shell: bash
         run: |
-          $CARGO --version
           $CARGO build --release --target ${{ matrix.target }}
-          # Handle windows being an oddity
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            echo "BIN_NAME=${{ env.PROJECT }}.exe" >> $GITHUB_ENV
+            echo "BIN_NAME=${{ env.PROJECT }}.exe" >> "$GITHUB_ENV"
           else
-            echo "BIN_NAME=${{ env.PROJECT }}" >> $GITHUB_ENV
+            echo "BIN_NAME=${{ env.PROJECT }}" >> "$GITHUB_ENV"
           fi
 
-      - name: Setup archive
+      - name: Package archive
         shell: bash
         run: |
           staging="${{ env.PROJECT }}-${{ env.PROJECT_VERSION }}-${{ matrix.target }}"
-          mkdir -p "$staging"
-
-          cp -r {README.md,LICENSE} "$staging"
+          mkdir "$staging"
+          cp README.md LICENSE "$staging/"
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp "target/${{ matrix.target }}/release/${{ env.PROJECT }}.exe" "$staging/"
-            7z a "$staging.zip" "$staging"
-            echo "ASSET=$staging.zip" >> $GITHUB_ENV
+            cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}" "$staging/"
+            7z a "$staging.zip" "$staging" >/dev/null
+            echo "ASSET=$staging.zip" >> "$GITHUB_ENV"
           else
-            cp "target/${{ matrix.target }}/release/${{ env.PROJECT }}" "$staging/"
+            cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}" "$staging/"
             tar czf "$staging.tar.gz" "$staging"
-            echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
+            echo "ASSET=$staging.tar.gz" >> "$GITHUB_ENV"
           fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ env.ASSET }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (for changelog)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set version
+        id: version
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          echo "VERSION=${VERSION}"          >> "$GITHUB_OUTPUT"
+          echo "PROJECT_VERSION=${VERSION}"  >> "$GITHUB_ENV"
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
 
       - name: Generate changelog
         uses: orhun/git-cliff-action@v4
@@ -132,10 +158,9 @@ jobs:
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           name: Tcping ${{ steps.version.outputs.VERSION }}
-          files: ${{ env.ASSET }}
           body_path: RELEASE_NOTES.md
+          files: dist/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
