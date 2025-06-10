@@ -2,11 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.10] - 2025-06-10
+
+### ⚙️ Miscellaneous Tasks
+
+- Add .gitattributes
+- Add .editorconfig
+- *(ci)* Update .github\workflows\release.yaml
+- Update .editorconfig
+- *(ci)* Update release.yaml
+- *(docs)* Update README
+
 ## [1.2.9] - 2025-05-08
 
 ### 🚀 Features
 
 - Add md & color formats
+
+### ⚙️ Miscellaneous Tasks
+
+- Release tcping version 1.2.9
 
 ## [1.2.8] - 2025-05-07
 
