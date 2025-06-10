@@ -67,7 +67,7 @@ jobs:
         run: |
           VERSION="${GITHUB_REF#refs/tags/}"
           echo "PROJECT_VERSION=${VERSION}" >> "$GITHUB_ENV"
-          echo "VERSION=${VERSION}"          >> "$GITHUB_OUTPUT"
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -75,11 +75,12 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Setup native compilation
-        if: ${{ !matrix.use-cross }}
+        if: ${{ matrix.use-cross == false }}
+        shell: bash
         run: echo "CARGO=cargo" >> "$GITHUB_ENV"
 
       - name: Setup cross compilation
-        if: ${{ matrix.use-cross }}
+        if: ${{ matrix.use-cross == true }}
         shell: bash
         run: |
           dir="$RUNNER_TEMP/cross"
@@ -96,6 +97,7 @@ jobs:
       - name: Build
         shell: bash
         run: |
+          : "${CARGO:=cargo}"
           $CARGO build --release --target ${{ matrix.target }}
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             echo "BIN_NAME=${{ env.PROJECT }}.exe" >> "$GITHUB_ENV"
@@ -139,10 +141,10 @@ jobs:
         shell: bash
         run: |
           VERSION="${GITHUB_REF#refs/tags/}"
-          echo "VERSION=${VERSION}"          >> "$GITHUB_OUTPUT"
-          echo "PROJECT_VERSION=${VERSION}"  >> "$GITHUB_ENV"
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "PROJECT_VERSION=${VERSION}" >> "$GITHUB_ENV"
 
-      - name: Download all build artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
