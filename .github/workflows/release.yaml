@@ -126,7 +126,7 @@ jobs:
         id: cliff
         with:
           config: cliff.toml
-          args: --latest --tag ${{ github.ref_name }} --strip header
+          args: --latest --tag ${{ steps.version.outputs.VERSION }} --strip header
         env:
           OUTPUT: RELEASE_NOTES.md
 
@@ -138,4 +138,4 @@ jobs:
           files: ${{ env.ASSET }}
           body_path: RELEASE_NOTES.md
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
