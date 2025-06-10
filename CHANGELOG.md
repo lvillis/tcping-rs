@@ -2,11 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.14] - 2025-06-10
+
+### ⚙️ Miscellaneous Tasks
+
+- *(ci)* Update release.yaml
+
 ## [1.2.13] - 2025-06-10
 
 ### ⚙️ Miscellaneous Tasks
 
 - *(ci)* Update release.yaml
+- Release tcping version 1.2.13
 
 ## [1.2.12] - 2025-06-10
 
