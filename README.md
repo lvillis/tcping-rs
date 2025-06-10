@@ -1,32 +1,40 @@
-<div align=right>Table of Contents↗️</div>
+<!-- ─── Language Switch & ToC (top-right) ─────────────────────────── -->
+<div align="right">
 
-<h1 align=center><code>tcping-rs</code></h1>
+<span style="color:#999;">🇺🇸 English</span> ·
+<a href="README.zh-CN.md">🇨🇳 中文</a> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Table of Contents ↗️
+
+</div>
+
+<h1 align="center"><code>tcping-rs</code></h1>
 
 <p align=center>🛠️ tcping-rs: Rust (rs) TCP Ping (tcping) Utility for Port Reachability.</p>
 
-<div align=center>
-  <a href="https://crates.io/crates/tcping">
-    <img src="https://img.shields.io/crates/v/tcping.svg" alt="crates.io version">
-  </a>
-  <a href="https://crates.io/crates/tcping">
-    <img src="https://img.shields.io/github/repo-size/lvillis/tcping-rs?style=flat-square&color=328657" alt="crates.io version">
-  </a>
-  <a href="https://github.com/lvillis/tcping-rs/actions">
-    <img src="https://github.com/lvillis/tcping-rs/actions/workflows/ci.yaml/badge.svg" alt="build status">
-  </a>
-  <a href="https://hub.docker.com/r/lvillis/tcping">
-    <img src="https://img.shields.io/docker/pulls/lvillis/tcping?style=flat-square" alt="docker pulls">
-  </a>
-  <a href="https://hub.docker.com/r/lvillis/tcping">
-    <img src="https://img.shields.io/docker/image-size/lvillis/tcping/latest?style=flat-square" alt="image size">
-  </a>
-  <a href="mailto:lvillis@outlook.com?subject=Thanks%20for%20tcping-rs!">
-    <img src="https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg" alt="say thanks">
-  </a>
+<div align="center">
+
+[![Crates.io](https://img.shields.io/crates/v/tcping.svg)](https://crates.io/crates/tcping)&nbsp;
+[![Repo Size](https://img.shields.io/github/repo-size/lvillis/tcping-rs?color=328657)](https://github.com/lvillis/tcping-rs)&nbsp;
+[![CI](https://github.com/lvillis/tcping-rs/actions/workflows/ci.yaml/badge.svg)](https://github.com/lvillis/tcping-rs/actions)&nbsp;
+[![Docker Pulls](https://img.shields.io/docker/pulls/lvillis/tcping?style=flat-square)](https://hub.docker.com/r/lvillis/tcping)&nbsp;
+[![Image Size](https://img.shields.io/docker/image-size/lvillis/tcping/latest?style=flat-square)](https://hub.docker.com/r/lvillis/tcping)&nbsp;
+[![Say Thanks](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](mailto:lvillis@outlook.com?subject=Thanks%20for%20tcping-rs!)
 
 </div>
 
 ---
+
+## ✨ Features
+
+| Feature                      | Description                                                               |
+|------------------------------|---------------------------------------------------------------------------|
+| **Pure Rust**                | No runtime dependencies, produces a tiny static binary                    |
+| **ICMP-free**                | Works where traditional `ping` is blocked; relies solely on TCP handshake |
+| **Cross-platform**           | Linux, macOS, Windows, *BSD, and any Tier-1 Rust target                   |
+| **Continuous / Burst modes** | `-t` for continuous, `-c` for specific count, plus `-e` early exit        |
+| **Machine-readable output**  | JSON / CSV via `-o`, ideal for scripts & monitoring                       |
+| **Jitter stats**             | `-j` flag shows latency variance (p95)                                    |
+| **Docker image**             | Multi-arch (`amd64` / `arm64`) for pipelines or Kubernetes Jobs           |
+
 
 ## Usage
 
