@@ -106,7 +106,7 @@ jobs:
         run: |
           staging="${{ env.PROJECT }}-${{ env.PROJECT_VERSION }}-${{ matrix.target }}"
           mkdir -p "$staging"
-          
+
           cp -r {README.md,LICENSE} "$staging"
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
             cp "target/${{ matrix.target }}/release/${{ env.PROJECT }}.exe" "$staging/"
@@ -131,6 +131,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          name: Tcping ${{ steps.version.outputs.VERSION }}
           files: ${{ env.ASSET }}
           body_path: RELEASE_NOTES.md
         env:
