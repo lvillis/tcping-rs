@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.11] - 2025-06-10
+
+### ⚙️ Miscellaneous Tasks
+
+- *(ci)* Update release.yaml
+
 ## [1.2.10] - 2025-06-10
 
 ### ⚙️ Miscellaneous Tasks
@@ -12,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - Update .editorconfig
 - *(ci)* Update release.yaml
 - *(docs)* Update README
+- Release tcping version 1.2.10
 
 ## [1.2.9] - 2025-05-08
 

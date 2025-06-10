@@ -1,7 +1,7 @@
 [package]
 name = "tcping"
 description = "🛠️ tcping-rs: Rust (rs) TCP Ping (tcping) Utility for Port Reachability."
-version = "1.2.10"
+version = "1.2.11"
 edition = "2024"
 license = "MIT"
 authors = ["lvillis<lvillis@outlook.com>"]
