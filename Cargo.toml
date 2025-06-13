@@ -9,13 +9,13 @@ repository = "https://github.com/lvillis/tcping-rs"
 homepage = "https://github.com/lvillis/tcping-rs"
 documentation = "https://github.com/lvillis/tcping-rs/blob/main/README.md"
 exclude = [
-    "/docs/",
-    "/tests/",
-    "/.config/",
-    "/.github/",
-    "/.justfile",
-    "/rust-toolchain.toml",
-    "/.gitignore",
+  "/docs/",
+  "/tests/",
+  "/.config/",
+  "/.github/",
+  "/.justfile",
+  "/rust-toolchain.toml",
+  "/.gitignore",
 ]
 
 [dependencies]
@@ -25,6 +25,16 @@ serde = { version = "1.0.219", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0.140", default-features = false, features = ["std"] }
 thiserror = "2.0.12"
 anyhow = "1.0.98"
+
+[profile.release]
+opt-level = "z"
+lto = "thin"
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[profile.dev.package."*"]
+opt-level = 1
 
 [package.metadata.release]
 tag-prefix = ""
