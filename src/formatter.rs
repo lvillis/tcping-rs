@@ -43,7 +43,6 @@ impl Formatter for Normal {
                 s.min_duration_ms, s.avg_duration_ms, s.max_duration_ms
             );
         }
-        println!("Address resolved in {:.4} ms\n", s.resolve_time_ms);
     }
 }
 
@@ -67,12 +66,7 @@ impl Formatter for Csv {
         let status = if res.success { "open" } else { "closed" };
         match res.jitter_ms {
             Some(j) => println!("{},{status},{:.4},{:.4}", res.addr, res.duration_ms, j),
-            None => println!(
-                "{},{},{}",
-                res.addr,
-                status,
-                format!("{:.4}", res.duration_ms)
-            ),
+            None => println!("{},{},{:.4}", res.addr, status, res.duration_ms),
         }
     }
 
@@ -99,10 +93,17 @@ pub struct Md {
 }
 
 impl Md {
+    /// Construct a new Markdown formatter.
     pub fn new() -> Self {
         Self {
             header_done: Cell::new(false),
         }
+    }
+}
+
+impl Default for Md {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -186,7 +187,6 @@ impl Formatter for Color {
                 s.min_duration_ms, s.avg_duration_ms, s.max_duration_ms
             );
         }
-        println!("Address resolved in {:.4} ms\n", s.resolve_time_ms);
     }
 }
 
