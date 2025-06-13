@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.17] - 2025-06-13
+
+### 🚀 Features
+
+- *(windows)* Add high-res timer
+
 ## [1.2.16] - 2025-06-13
 
 ### ⚡ Performance
@@ -12,6 +18,7 @@ All notable changes to this project will be documented in this file.
 
 - *(ci)* Update docker.yaml
 - Silence clippy
+- Release tcping version 1.2.16
 
 ## [1.2.15] - 2025-06-10
 
