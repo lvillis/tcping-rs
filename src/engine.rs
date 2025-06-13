@@ -1,13 +1,15 @@
-//! High-level orchestration: resolve → probe loop → formatted output.
+//! Orchestrator: resolve target → fixed-interval probes → formatted output.
 //!
-//! * [`run`]      — synchronous wrapper that owns its own Tokio runtime.
-//! * [`run_async`] — async API for callers already inside a runtime.
-//!
-//! For a **domain-name** target we print a “Resolved …” line with the
-//! resolved IP and primary DNS server, followed by a blank line.
-//! For an **IP literal** target we skip DNS resolution entirely but still
-//! emit a leading blank line so the first `Probing …` line does not stick
-//! to the prompt.
+//! Features
+//! --------
+//! • Multi-thread Tokio runtime (I/O thread + timer thread).  
+//! • Windows-only tweaks in `main.rs` boost timer resolution and thread
+//!   priority (see `src/main.rs`).  
+//! • `tokio::time::interval` with the *first* tick pre-consumed so probes
+//!   print exactly every second—no first-loop double print.  
+//! • Domain targets show a “Resolved …” banner with DNS server & timing.
+//! • Sequence number travels via `PingResult.seq`; Normal/Color formatters
+//!   add a one-shot note after the very first probe.
 
 use crate::{
     cli::{Args, OutputMode},
@@ -20,13 +22,10 @@ use std::{
     net::{IpAddr, ToSocketAddrs},
     time::Instant,
 };
-use tokio::{
-    signal,
-    time::{sleep, Duration},
-};
+use tokio::{signal, time};
 
-/// Return the first DNS server declared in `/etc/resolv.conf` (Unix only).
-/// On non-Unix platforms or failure it returns `None`.
+/// Best-effort reader for the first DNS server listed in `/etc/resolv.conf`
+/// (Unix only).  Returns `None` on Windows or failure.
 fn first_dns_server() -> Option<IpAddr> {
     #[cfg(unix)]
     {
@@ -43,25 +42,25 @@ fn first_dns_server() -> Option<IpAddr> {
     None
 }
 
-/// Synchronous helper that spins up a single-thread Tokio runtime.
+/// Create a two-thread Tokio runtime and block on the async runner.
 pub fn run(args: Args) -> Result<i32> {
-    let rt = tokio::runtime::Builder::new_current_thread()
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
         .enable_all()
         .build()?;
     rt.block_on(run_async(args))
 }
 
-/// Full tcping session (async variant).
+/// Async tcping session.
 pub async fn run_async(args: Args) -> Result<i32> {
-    // Host / port split
+    /* ---------- target parsing ---------- */
     let (host, _port) = args
         .address
         .split_once(':')
         .ok_or_else(|| TcpingError::Other(anyhow::anyhow!("target must be host:port")))?;
-
     let is_ip_literal = host.parse::<IpAddr>().is_ok();
 
-    // DNS resolution (domains only)
+    /* ---------- resolution ---------- */
     let (addr, resolve_ms) = if is_ip_literal {
         let addr = args
             .address
@@ -82,7 +81,6 @@ pub async fn run_async(args: Args) -> Result<i32> {
             let dns = first_dns_server()
                 .map(|ip| ip.to_string())
                 .unwrap_or_else(|| "system default".into());
-
             println!(
                 "\nResolved {host} → {}  (DNS {dns})  in {:.4} ms\n",
                 addr.ip(),
@@ -92,46 +90,48 @@ pub async fn run_async(args: Args) -> Result<i32> {
         (addr, ms)
     };
 
-    // IP literal still needs a leading blank line
+    /* ---------- blank line for IP literal ---------- */
     if is_ip_literal && matches!(args.output_mode, OutputMode::Normal) {
         println!();
     }
 
-    let timeout = Duration::from_millis(args.timeout_ms);
-
-    if args.continuous && matches!(args.output_mode, OutputMode::Normal) {
-        println!("** Probing continuously — press Ctrl-C to stop **");
-    }
-
-    // Stats & formatter
+    /* ---------- stats & formatter ---------- */
     let mut stats = Stats::new(addr, resolve_ms);
     let fmt: Box<dyn Formatter> = formatter::from_mode(args.output_mode);
 
-    // Signal handling (Ctrl-C)
+    /* ---------- Ctrl-C future ---------- */
     let sigint = signal::ctrl_c();
     tokio::pin!(sigint);
 
-    // Main probe loop
+    /* ---------- 1-second ticker ---------- */
+    let mut ticker = time::interval(time::Duration::from_secs(1));
+    ticker.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+    ticker.tick().await; // consume zero-delay first tick
+
+    let timeout = time::Duration::from_millis(args.timeout_ms);
+    let mut first = true;
+
     loop {
-        if !stats.should_continue(&args) {
-            break;
+        /* ---- probe ---- */
+        if !first {
+            tokio::select! {
+                _ = ticker.tick() => {},
+                _ = &mut sigint   => break,
+            }
+        } else {
+            first = false; // skip waiting before probe #1
         }
 
         let (ok, rtt) = probe_once(addr, timeout).await;
         let res = stats.feed(ok, rtt, args.jitter);
         fmt.probe(&res);
 
-        if stats.should_break(ok, &args) {
+        if stats.should_break(ok, &args) || !stats.should_continue(&args) {
             break;
-        }
-
-        tokio::select! {
-            _ = sleep(Duration::from_secs(1)) => {},
-            _ = &mut sigint => break,
         }
     }
 
-    // Summary
+    /* ---------- summary ---------- */
     fmt.summary(&stats.summary());
     Ok(stats.exit_code())
 }
