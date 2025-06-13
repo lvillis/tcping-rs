@@ -2,11 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.18] - 2025-06-13
+
+### ⚙️ Miscellaneous Tasks
+
+- Reduce release binary size
+
 ## [1.2.17] - 2025-06-13
 
 ### 🚀 Features
 
 - *(windows)* Add high-res timer
+
+### ⚙️ Miscellaneous Tasks
+
+- Release tcping version 1.2.17
 
 ## [1.2.16] - 2025-06-13
 
