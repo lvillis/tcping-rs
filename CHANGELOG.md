@@ -2,11 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.16] - 2025-06-13
+
+### ⚡ Performance
+
+- Polish output
+
+### ⚙️ Miscellaneous Tasks
+
+- *(ci)* Update docker.yaml
+- Silence clippy
+
 ## [1.2.15] - 2025-06-10
 
 ### ⚙️ Miscellaneous Tasks
 
 - *(ci)* Update release.yaml
+- Release tcping version 1.2.15
 
 ## [1.2.14] - 2025-06-10
 
