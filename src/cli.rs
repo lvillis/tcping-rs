@@ -46,6 +46,6 @@ pub enum OutputMode {
     Normal,
     Json,
     Csv,
-    Md,       // Markdown
-    Color,    // ANSI-colored TTY
+    Md,    // Markdown
+    Color, // ANSI-colored TTY
 }

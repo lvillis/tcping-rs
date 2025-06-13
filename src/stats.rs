@@ -1,10 +1,16 @@
-//! Aggregation logic & data models.
+//! Runtime statistics and data structures.
+//!
+//! [`Stats`] accumulates per-probe results and emits a final [`Summary`].
+//! Both [`PingResult`] and [`Summary`] are `serde`-serialisable so the
+//! formatting layer can dump them directly.
 
 use crate::cli::Args;
 use serde::Serialize;
 use std::net::SocketAddr;
 
-/// Per-probe result (JSON/CSV serialisable).
+/// Result of a single probe.
+///
+/// This structure may be serialised as JSON / CSV by the formatter layer.
 #[derive(Clone, Serialize)]
 pub struct PingResult {
     pub success: bool,
@@ -13,7 +19,7 @@ pub struct PingResult {
     pub addr: SocketAddr,
 }
 
-/// Final session summary.
+/// Roll-up of an entire probing session.
 #[derive(Serialize)]
 pub struct Summary {
     pub addr: SocketAddr,
@@ -26,7 +32,7 @@ pub struct Summary {
     pub resolve_time_ms: f64,
 }
 
-/// Runtime statistics accumulator.
+/// Mutable accumulator used during a session.
 pub struct Stats {
     addr: SocketAddr,
     sent: usize,
@@ -34,10 +40,12 @@ pub struct Stats {
     total_rtt: f64,
     min_rtt: f64,
     max_rtt: f64,
+    last_rtt: Option<f64>,
     resolve_ms: f64,
 }
 
 impl Stats {
+    /// Create a new accumulator.
     pub fn new(addr: SocketAddr, resolve_ms: f64) -> Self {
         Self {
             addr,
@@ -46,25 +54,28 @@ impl Stats {
             total_rtt: 0.0,
             min_rtt: f64::MAX,
             max_rtt: 0.0,
+            last_rtt: None,
             resolve_ms,
         }
     }
 
-    /// Feed one probe result and construct `PingResult`.
+    /// Feed one probe result and obtain a [`PingResult`] to hand to the formatter.
     pub fn feed(&mut self, success: bool, rtt: f64, want_jitter: bool) -> PingResult {
         self.sent += 1;
+
+        let jitter = if want_jitter {
+            self.last_rtt.map(|prev| (rtt - prev).abs())
+        } else {
+            None
+        };
+
         if success {
             self.ok += 1;
             self.total_rtt += rtt;
             self.min_rtt = self.min_rtt.min(rtt);
             self.max_rtt = self.max_rtt.max(rtt);
+            self.last_rtt = Some(rtt);
         }
-
-        let jitter = if success && want_jitter && self.ok > 0 {
-            Some((rtt - self.total_rtt / self.ok as f64).abs())
-        } else {
-            None
-        };
 
         PingResult {
             success,
@@ -74,14 +85,17 @@ impl Stats {
         }
     }
 
+    /// Should the main loop continue?
     pub fn should_continue(&self, args: &Args) -> bool {
         args.continuous || self.sent < args.count
     }
 
+    /// Should we break early because `-e/--exit-on-success`?
     pub fn should_break(&self, success: bool, args: &Args) -> bool {
         success && args.exit_on_success
     }
 
+    /// Produce the final [`Summary`].
     pub fn summary(&self) -> Summary {
         Summary {
             addr: self.addr,
@@ -99,6 +113,7 @@ impl Stats {
         }
     }
 
+    /// Map statistics to a conventional Unix exit code.
     pub fn exit_code(&self) -> i32 {
         if self.ok == self.sent && self.sent > 0 {
             0
