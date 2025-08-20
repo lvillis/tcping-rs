@@ -23,7 +23,7 @@ clap = { version = "4.5.45", default-features = false, features = ["std", "color
 tokio = { version = "1.47.1", default-features = false, features = ["rt-multi-thread", "macros", "net", "time", "signal"] }
 serde = { version = "1.0.219", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0.143", default-features = false, features = ["std"] }
-thiserror = "2.0.15"
+thiserror = "2.0.16"
 anyhow = "1.0.99"
 
 [profile.release]
