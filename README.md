@@ -86,7 +86,22 @@ Run `tcping-rs` using the Docker image:
 
 ```shell
 docker run --rm docker.io/lvillis/tcping:latest <host:port> [options]
+```
 
+### Using Nix
+
+`tcping-rs` is available in nixpkgs. To install it system wide:
+
+```nix
+  environment.systemPackages = [
+    pkgs.tcping-rs
+  ];
+```
+
+Or spawn in a nix-shell:
+
+```console
+nix-shell -p tcping-rs
 ```
 
 ## About
