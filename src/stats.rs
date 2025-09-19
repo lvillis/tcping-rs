@@ -1,7 +1,7 @@
 //! Runtime statistics and data structures.
 //!
-//! [`Stats`] accumulates per-probe results and emits a final [`Summary`].
-//! Both [`PingResult`] and [`Summary`] are `serde`-serialisable so the
+//! [Stats] accumulates per-probe results and emits a final [Summary].
+//! Both [PingResult] and [Summary] are serde-serialisable so the
 //! formatting layer can dump them directly.
 
 use crate::cli::Args;
@@ -59,7 +59,7 @@ impl Stats {
         }
     }
 
-    /// Feed one probe result and obtain a [`PingResult`] to hand to the formatter.
+    /// Feed one probe result and obtain a [PingResult] to hand to the formatter.
     pub fn feed(&mut self, success: bool, rtt: f64, want_jitter: bool) -> PingResult {
         self.sent += 1;
 
@@ -90,18 +90,24 @@ impl Stats {
         args.continuous || self.sent < args.count
     }
 
-    /// Should we break early because `-e/--exit-on-success`?
+    /// Should we break early because -e/--exit-on-success?
     pub fn should_break(&self, success: bool, args: &Args) -> bool {
         success && args.exit_on_success
     }
 
-    /// Produce the final [`Summary`].
+    /// Produce the final [Summary].
     pub fn summary(&self) -> Summary {
+        let packet_loss = if self.sent == 0 {
+            0.0
+        } else {
+            100.0 * (1.0 - self.ok as f64 / self.sent as f64)
+        };
+
         Summary {
             addr: self.addr,
             total_attempts: self.sent,
             successful_pings: self.ok,
-            packet_loss: 100.0 * (1.0 - self.ok as f64 / self.sent as f64),
+            packet_loss,
             min_duration_ms: if self.ok > 0 { self.min_rtt } else { 0.0 },
             avg_duration_ms: if self.ok > 0 {
                 self.total_rtt / self.ok as f64
@@ -120,5 +126,33 @@ impl Stats {
         } else {
             1
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr};
+
+    fn loopback_addr() -> SocketAddr {
+        SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 80)
+    }
+
+    #[test]
+    fn summary_handles_zero_probes() {
+        let stats = Stats::new(loopback_addr(), 0.0);
+        let summary = stats.summary();
+        assert_eq!(summary.total_attempts, 0);
+        assert_eq!(summary.packet_loss, 0.0);
+    }
+
+    #[test]
+    fn jitter_is_difference_between_successive_successes() {
+        let mut stats = Stats::new(loopback_addr(), 0.0);
+        let first = stats.feed(true, 10.0, true);
+        assert_eq!(first.jitter_ms, None);
+
+        let second = stats.feed(true, 15.0, true);
+        assert_eq!(second.jitter_ms, Some(5.0));
     }
 }
