@@ -35,3 +35,15 @@ fn exit_on_success() {
     let a = Args::parse_from(["tcping", "127.0.0.1:80", "-e"]);
     assert!(a.exit_on_success);
 }
+
+#[test]
+fn reject_zero_count() {
+    let err = Args::try_parse_from(["tcping", "127.0.0.1:80", "-c", "0"]).unwrap_err();
+    assert!(err.to_string().contains(">= 1"));
+}
+
+#[test]
+fn reject_zero_timeout() {
+    let err = Args::try_parse_from(["tcping", "127.0.0.1:80", "--timeout-ms", "0"]).unwrap_err();
+    assert!(err.to_string().contains(">= 1"));
+}
