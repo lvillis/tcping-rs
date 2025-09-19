@@ -51,10 +51,10 @@ impl Formatter for Normal {
 pub struct Json;
 impl Formatter for Json {
     fn probe(&self, res: &PingResult) {
-        println!("{}", to_string(res).unwrap())
+        println!("{}", to_string(res).expect("serialize PingResult"))
     }
     fn summary(&self, s: &Summary) {
-        println!("{}", to_string(s).unwrap())
+        println!("{}", to_string(s).expect("serialize Summary"))
     }
 }
 
@@ -99,6 +99,19 @@ impl Md {
             header_done: Cell::new(false),
         }
     }
+
+    fn render_row(res: &PingResult) -> String {
+        let status = if res.success { "ok" } else { "fail" };
+        let jitter = res
+            .jitter_ms
+            .map(|j| format!("{:.4}", j))
+            .unwrap_or_else(|| "-".into());
+
+        format!(
+            "| {} | {} | {:.4} | {} |",
+            res.addr, status, res.duration_ms, jitter
+        )
+    }
 }
 
 impl Default for Md {
@@ -115,16 +128,7 @@ impl Formatter for Md {
             println!("|---------|--------|--------|-----------|");
         }
 
-        let status = if res.success { "✓" } else { "✗" };
-        let jitter = res
-            .jitter_ms
-            .map(|j| format!("{:.4}", j))
-            .unwrap_or_else(|| "-".into());
-
-        println!(
-            "| {} | {} | {:.4} | {} |",
-            res.addr, status, res.duration_ms, jitter
-        );
+        println!("{}", Self::render_row(res));
     }
 
     fn summary(&self, s: &Summary) {
@@ -199,5 +203,41 @@ pub fn from_mode(mode: OutputMode) -> Box<dyn Formatter> {
         OutputMode::Csv => Box::new(Csv),
         OutputMode::Md => Box::new(Md::new()),
         OutputMode::Color => Box::new(Color),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+
+    fn sample_result(success: bool, jitter: Option<f64>) -> PingResult {
+        PingResult {
+            success,
+            duration_ms: 42.0,
+            jitter_ms: jitter,
+            addr: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 80),
+        }
+    }
+
+    #[test]
+    fn markdown_header_only_prints_once() {
+        let fmt = Md::new();
+        assert!(!fmt.header_done.get());
+        fmt.probe(&sample_result(true, None));
+        assert!(fmt.header_done.get());
+        fmt.probe(&sample_result(true, None));
+        assert!(fmt.header_done.get());
+    }
+
+    #[test]
+    fn markdown_rows_use_ascii_status() {
+        let ok_row = Md::render_row(&sample_result(true, Some(1.5)));
+        assert!(ok_row.contains("| ok |"));
+        assert!(ok_row.contains("1.5000"));
+
+        let fail_row = Md::render_row(&sample_result(false, None));
+        assert!(fail_row.contains("| fail |"));
+        assert!(fail_row.ends_with(" | - |") || fail_row.contains("| - |"));
     }
 }
