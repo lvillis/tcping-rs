@@ -1,5 +1,5 @@
-//! Library facade — re-export internal modules so integration
-//! tests or external code can `use tcping::...`.
+//! Library facade - re-export internal modules so integration
+//! tests or external code can use `tcping::...`.
 
 pub mod cli;
 pub mod engine;
