@@ -19,7 +19,7 @@ exclude = [
 ]
 
 [dependencies]
-clap = { version = "4.5.48", default-features = false, features = ["std", "color", "usage", "help", "suggestions", "error-context", "derive"] }
+clap = { version = "4.5.49", default-features = false, features = ["std", "color", "usage", "help", "suggestions", "error-context", "derive"] }
 tokio = { version = "1.47.1", default-features = false, features = ["rt-multi-thread", "macros", "net", "time", "signal"] }
 serde = { version = "1.0.226", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0.145", default-features = false, features = ["std"] }
