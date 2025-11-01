@@ -48,9 +48,15 @@ impl ParsedTarget {
 
         let port: u16 = port_part.parse().map_err(|_| {
             TcpingError::Other(anyhow::anyhow!(
-                "port must be an integer between 0 and 65535"
+                "port must be an integer between 1 and 65535"
             ))
         })?;
+
+        if port == 0 {
+            return Err(TcpingError::Other(anyhow::anyhow!(
+                "port must be an integer between 1 and 65535"
+            )));
+        }
 
         let is_literal = host_part.parse::<IpAddr>().is_ok();
 
@@ -209,5 +215,10 @@ mod tests {
     #[test]
     fn rejects_missing_port() {
         assert!(ParsedTarget::new("example.com").is_err());
+    }
+
+    #[test]
+    fn rejects_port_zero() {
+        assert!(ParsedTarget::new("example.com:0").is_err());
     }
 }

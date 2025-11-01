@@ -16,12 +16,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
-      - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Build
         run: cargo build --verbose

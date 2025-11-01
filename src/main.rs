@@ -2,20 +2,12 @@
 //!
 //! * Parses CLI arguments.
 //! * Runs the probing engine.
-//! * On **Windows**:  
-//!   - Requests a 1 ms system timer (`timeBeginPeriod`).  
+//! * On **Windows**:
+//!   - Requests a 1 ms system timer (`timeBeginPeriod`).
 //!   - Raises current thread priority to `THREAD_PRIORITY_HIGHEST`.
 
-mod cli;
-mod engine;
-mod error;
-mod formatter;
-mod probe;
-mod stats;
-
 use clap::Parser;
-use cli::Args;
-use error::Result;
+use tcping::{cli::Args, engine, error::Result};
 
 #[cfg(windows)]
 mod win_boost {
