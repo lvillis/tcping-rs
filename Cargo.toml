@@ -9,14 +9,17 @@ authors = ["lvillis<lvillis@outlook.com>"]
 repository = "https://github.com/lvillis/tcping-rs"
 homepage = "https://github.com/lvillis/tcping-rs"
 documentation = "https://github.com/lvillis/tcping-rs/blob/main/README.md"
-exclude = [
-  "/docs/",
-  "/tests/",
-  "/.config/",
-  "/.github/",
-  "/.justfile",
-  "/rust-toolchain.toml",
-  "/.gitignore",
+include = [
+  "src/**",
+  "tests/**",
+  "Cargo.toml",
+  "Cargo.lock",
+  "README.md",
+  "README.zh-CN.md",
+  "LICENSE",
+  "CHANGELOG.md",
+  ".gitignore",
+  ".editorconfig",
 ]
 
 [dependencies]
