@@ -1,3 +1,8 @@
+## [1.2.20] - 2025-11-01
+
+### 🚜 Refactor
+
+- Reuse lib entrypoint and tighten port validation
 ## [1.2.19] - 2025-09-19
 
 ### 🚀 Features
@@ -18,6 +23,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - *(docs)* Add README.zh-CN.md
+- Release tcping version 1.2.19
 ## [1.2.18] - 2025-06-13
 
 ### ⚙️ Miscellaneous Tasks
