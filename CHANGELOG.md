@@ -1,8 +1,21 @@
+## [1.2.21] - 2025-11-01
+
+### 🐛 Bug Fixes
+
+- Ci
+
+### ⚙️ Miscellaneous Tasks
+
+- Update Cargo.toml
 ## [1.2.20] - 2025-11-01
 
 ### 🚜 Refactor
 
 - Reuse lib entrypoint and tighten port validation
+
+### ⚙️ Miscellaneous Tasks
+
+- Release tcping version 1.2.20
 ## [1.2.19] - 2025-09-19
 
 ### 🚀 Features
