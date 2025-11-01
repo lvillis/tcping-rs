@@ -34,7 +34,7 @@ jobs:
           - os: ubuntu-latest
             target: armv7-unknown-linux-gnueabihf
             use-cross: true
-          - os: macos-latest
+          - os: macos-13
             target: x86_64-apple-darwin
             use-cross: false
           - os: macos-latest
@@ -65,6 +65,16 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+
+      - name: Add GNU target
+        if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
+        shell: bash
+        run: rustup target add x86_64-pc-windows-gnu
+
+      - name: Install MinGW toolchain
+        if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
+        shell: powershell
+        run: choco install mingw --no-progress --yes
 
       - name: Setup native compilation
         if: ${{ matrix.use-cross == false }}
@@ -154,7 +164,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${{ steps.version.outputs.VERSION }}"
-          title="Tcping ${tag}"
+          title="tcping ${tag}"
           assets=$(find dist -type f -maxdepth 2)
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" $assets --clobber
