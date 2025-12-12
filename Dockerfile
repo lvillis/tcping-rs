@@ -5,7 +5,7 @@ RUN set -ex \
         \
     && apk update \
     && apk upgrade \
-    && apk add --update --no-cache musl-dev openssl-dev perl make lld
+    && apk add --update --no-cache build-base
 
 WORKDIR /opt/app
 
@@ -24,7 +24,6 @@ COPY src/ /opt/app/src/
 
 RUN set -ex \
         \
-    && export RUSTFLAGS="-C linker=lld" \
     && cargo build --release
 
 

@@ -83,7 +83,7 @@ fn first_dns_server() -> Option<IpAddr> {
         use std::fs::File;
         use std::io::{BufRead, BufReader};
         let file = File::open("/etc/resolv.conf").ok()?;
-        for line in BufReader::new(file).lines().flatten() {
+        for line in BufReader::new(file).lines().map_while(|line| line.ok()) {
             let line = line.trim_start();
             if let Some(rest) = line.strip_prefix("nameserver") {
                 return rest.trim().parse().ok();
