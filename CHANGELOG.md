@@ -1,8 +1,17 @@
+## [1.2.24] - 2025-12-12
+
+### ⚙️ Miscellaneous Tasks
+
+- *(ci)* Remove x86_64-apple-darwin
 ## [1.2.23] - 2025-12-12
 
 ### 🐛 Bug Fixes
 
 - Ci
+
+### ⚙️ Miscellaneous Tasks
+
+- Release tcping version 1.2.23
 ## [1.2.22] - 2025-12-12
 
 ### 🐛 Bug Fixes
