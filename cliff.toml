@@ -1,0 +1,37 @@
+# git-cliff configuration for tcping-rs.
+
+[changelog]
+header = ""
+body = """
+{% if version %}## [{{ version }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}## [unreleased]
+{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group }}
+{% for commit in commits %}
+- {{ commit.message | trim }}
+{% endfor %}
+
+{% endfor %}
+"""
+trim = true
+footer = ""
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+tag_pattern = "^\\d+\\.\\d+\\.\\d+$"
+commit_parsers = [
+  { message = "^feat", group = "🚀 Features" },
+  { message = "^fix", group = "🐛 Bug Fixes" },
+  { message = "^perf", group = "⚡ Performance" },
+  { message = "^refactor", group = "🚜 Refactor" },
+  { message = "^docs", group = "📚 Documentation" },
+  { message = "^test", group = "🧪 Tests" },
+  { message = "^ci", group = "🔧 CI" },
+  { message = "^build", group = "🏗️ Build" },
+  { message = "^chore", group = "⚙️ Miscellaneous Tasks" },
+  { message = "^revert", group = "⏪ Reverts" },
+  { message = ".*", group = "⚙️ Miscellaneous Tasks" },
+]

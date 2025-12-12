@@ -20,8 +20,8 @@ fn continuous_flag() {
 }
 
 #[test]
-fn resolve_domain() {
-    assert!("example.com:80".to_socket_addrs().is_ok());
+fn resolve_localhost() {
+    assert!("localhost:80".to_socket_addrs().is_ok());
 }
 
 #[test]

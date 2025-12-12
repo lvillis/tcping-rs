@@ -27,19 +27,19 @@
 
 | 亮点               | 描述                                                                |
 |--------------------|---------------------------------------------------------------------|
-| **纯Rust实现**     | 无需运行时依赖的极小静态程序                                        |
+| **纯Rust实现**     | 单文件可执行程序，无需额外运行时依赖                                |
 | **免ICMP协议**     | 在传统`ping`被屏蔽的场景仍可用，仅依靠TCP握手检测                   |
 | **跨平台**         | 支持Linux、macOS、Windows、*BSD及所有Rust T1级支持的平台            |
 | **多种模式**       | `-t` 持续运行, `-c` 指定次数, `-e` 支持提前退出                     |
-| **机器可读输出**   | `-o` 支持JSON / CSV格式, 适用于脚本处理与监控                       |
-| **抖动统计**       | `-j` 显示延迟波动情况(包含P95百分位)                                |
+| **机器可读输出**   | `-o` 支持 JSON(NDJSON) / CSV / Markdown，适用于脚本与监控           |
+| **抖动统计**       | `-j` 输出每次探测抖动，并在汇总中给出 p95                           |
 | **Docker镜像**     | 提供多架构镜像(`amd64` / `arm64`)，适配CI/CD流水线与Kubernetes任务  |
 
 
 ## 用法
 
 ```bash
-tcping <host:port> [-c count] [-t] [-e] [-j] [-o mode]
+tcping <host:port> [-c count] [-t] [-e] [-j] [-o mode] [--timeout-ms ms]
 ```
 
 参数:
@@ -48,8 +48,9 @@ tcping <host:port> [-c count] [-t] [-e] [-j] [-o mode]
 - `-c count` 指定检测次数(默认: 4)
 - `-t` 开启持续检测
 - `-e` 目标机器握手成功后立即退出
-- `-j` 计算和显示抖动统计
-- `-o mode` 设置输出格式 (`normal`, `json`, `csv`)
+- `-j` 开启抖动输出（每次探测 + 汇总 p95）
+- `-o mode` 设置输出格式 (`normal`, `json`, `csv`, `md`, `color`)
+- `--timeout-ms` 单次探测超时时间(毫秒，默认: 2000)
 - `-h` 打印帮助信息
 - `-V` 打印程序版本
 
@@ -58,17 +59,23 @@ tcping <host:port> [-c count] [-t] [-e] [-j] [-o mode]
 ```bash
 $ tcping github.com:443
 
-Resolved address in 0.9340 ms
-Probing 140.82.113.4:443/tcp - Port is open - time=12.7510ms
-Probing 140.82.113.4:443/tcp - Port is open - time=12.4270ms
-Probing 140.82.113.4:443/tcp - Port is open - time=11.4410ms
-Probing 140.82.113.4:443/tcp - Port is open - time=12.7510ms
+Resolved github.com -> 140.82.113.4  (DNS system default)  in 0.9340 ms
+
+Probing 140.82.113.4:443/tcp - open - 12.7510 ms
+Probing 140.82.113.4:443/tcp - open - 12.4270 ms
+Probing 140.82.113.4:443/tcp - open - 11.4410 ms
+Probing 140.82.113.4:443/tcp - open - 12.7510 ms
 
 --- 140.82.113.4:443 tcping statistics ---
 4 probes sent, 4 successful, 0.00% packet loss
-Round-trip min/avg/max = 11.4410ms/12.3425ms/12.7510ms
+Round-trip min/avg/max = 11.4410/12.3425/12.7510 ms
 Address resolved in 0.9340 ms
 ```
+
+## 输出格式
+
+- `-o json`: NDJSON（每行一个 JSON 对象），通过 `schema=tcping.v1` 和 `record=probe|summary` 区分记录类型
+- `-o csv`: 单一 CSV 输出流（带表头），通过 `schema=tcping.v1` 和 `record=probe|summary` 区分记录类型
 
 ## 安装指南
 
@@ -91,4 +98,4 @@ docker run --rm docker.io/lvillis/tcping:latest <host:port> [options]
 
 ## 关于
 
-该工具通过TCP握手测量服务器延迟。采用Rust语言开发，并集成clap库实现命令行参数解析。
+该工具通过TCP握手测量服务器延迟。采用Rust语言开发，并集成 clap 进行命令行解析，使用 Tokio 实现异步循环与计时器。

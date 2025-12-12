@@ -7,6 +7,7 @@
 //!   - Raises current thread priority to `THREAD_PRIORITY_HIGHEST`.
 
 use clap::Parser;
+use std::process::ExitCode;
 use tcping::{cli::Args, engine, error::Result};
 
 #[cfg(windows)]
@@ -16,6 +17,7 @@ mod win_boost {
     #[link(name = "winmm")]
     unsafe extern "system" {
         fn timeBeginPeriod(period: u32) -> u32;
+        fn timeEndPeriod(period: u32) -> u32;
     }
 
     #[link(name = "kernel32")]
@@ -24,9 +26,25 @@ mod win_boost {
         fn GetCurrentThread() -> *mut core::ffi::c_void;
     }
 
-    pub fn enable_high_res_timer() {
-        // SAFETY: official API; 1 ms is always valid.
-        unsafe { timeBeginPeriod(1) };
+    pub struct HighResTimerGuard {
+        period: Option<u32>,
+    }
+
+    impl HighResTimerGuard {
+        pub fn enable(period: u32) -> Self {
+            let ok = unsafe { timeBeginPeriod(period) } == 0;
+            Self {
+                period: ok.then_some(period),
+            }
+        }
+    }
+
+    impl Drop for HighResTimerGuard {
+        fn drop(&mut self) {
+            if let Some(period) = self.period {
+                unsafe { timeEndPeriod(period) };
+            }
+        }
     }
 
     pub fn elevate_thread_priority() {
@@ -39,14 +57,18 @@ mod win_boost {
     }
 }
 
-fn main() -> Result<()> {
+fn main() -> Result<ExitCode> {
     #[cfg(windows)]
-    {
-        win_boost::enable_high_res_timer();
-        win_boost::elevate_thread_priority();
-    }
+    let _timer_guard = win_boost::HighResTimerGuard::enable(1);
+
+    #[cfg(windows)]
+    win_boost::elevate_thread_priority();
 
     let args = Args::parse();
     let exit_code = engine::run(args)?;
-    std::process::exit(exit_code);
+    Ok(if exit_code == 0 {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    })
 }

@@ -13,7 +13,7 @@ use crate::{
     stats::Stats,
 };
 use std::{
-    net::{IpAddr, SocketAddr, ToSocketAddrs},
+    net::{IpAddr, SocketAddr},
     time::Instant,
 };
 use tokio::{signal, time};
@@ -115,7 +115,7 @@ pub async fn run_async(args: Args) -> Result<i32> {
         (addr, 0.0)
     } else {
         let start = Instant::now();
-        let mut iter = (parsed.host.as_str(), parsed.port).to_socket_addrs()?;
+        let mut iter = tokio::net::lookup_host((parsed.host.as_str(), parsed.port)).await?;
         let addr = iter
             .next()
             .ok_or_else(|| TcpingError::Other(anyhow::anyhow!("unresolvable host")))?;
