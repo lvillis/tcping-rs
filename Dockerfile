@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.5
-FROM rust:1.92.0-alpine3.22 AS builder
+FROM rust:1.93.0-alpine3.22 AS builder
 
 RUN set -ex \
         \
