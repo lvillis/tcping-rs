@@ -25,7 +25,7 @@ tokio = { version = "1.49.0", default-features = false, features = ["rt-multi-th
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0.149", default-features = false, features = ["std"] }
 thiserror = "2.0.17"
-anyhow = "1.0.100"
+anyhow = "1.0.101"
 
 [profile.release]
 opt-level = "z"
