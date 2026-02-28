@@ -59,7 +59,7 @@ jobs:
           echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.92.0
+        uses: dtolnay/rust-toolchain@1.100.0
         with:
           targets: ${{ matrix.target }}
 
