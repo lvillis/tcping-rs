@@ -7,11 +7,52 @@ on:
       - 'Dockerfile'
       - 'CHANGELOG.md'
       - 'README.md'
+      - 'README.zh-CN.md'
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_TOOLCHAIN: 1.94.1
+
 jobs:
-  build:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        shell: bash
+        run: |
+          rustup set profile minimal
+          rustup toolchain install "${RUST_TOOLCHAIN}" --component clippy,rustfmt
+          rustup override set "${RUST_TOOLCHAIN}"
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-registry-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-${{ env.RUST_TOOLCHAIN }}-
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --locked -- -D warnings
+
+  test:
+    name: test-${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -20,19 +61,24 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.92.0
+
+      - name: Install Rust toolchain
+        shell: bash
+        run: |
+          rustup set profile minimal
+          rustup toolchain install "${RUST_TOOLCHAIN}"
+          rustup override set "${RUST_TOOLCHAIN}"
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
         with:
-          components: clippy, rustfmt
-
-      - name: Build
-        run: cargo build --verbose
-
-      - name: Format
-        run: cargo fmt --check
-
-      - name: Clippy
-        run: cargo clippy -- -D warnings
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-registry-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-${{ env.RUST_TOOLCHAIN }}-
 
       - name: Run tests
-        run: cargo test --verbose
+        run: cargo test --verbose --locked

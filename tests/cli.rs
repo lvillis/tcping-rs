@@ -2,7 +2,7 @@
 
 use clap::Parser;
 use std::net::ToSocketAddrs;
-use tcping::cli::{Args, OutputMode};
+use tcping::cli::{Args, OutputMode, TimestampFormat};
 
 #[test]
 fn parse_basic() {
@@ -11,6 +11,7 @@ fn parse_basic() {
     assert_eq!(a.count, 5);
     assert!(!a.continuous);
     assert_eq!(a.output_mode, OutputMode::Normal);
+    assert_eq!(a.timestamp_format(), None);
 }
 
 #[test]
@@ -46,4 +47,28 @@ fn reject_zero_count() {
 fn reject_zero_timeout() {
     let err = Args::try_parse_from(["tcping", "127.0.0.1:80", "--timeout-ms", "0"]).unwrap_err();
     assert!(err.to_string().contains(">= 1"));
+}
+
+#[test]
+fn timestamp_defaults_to_iso8601_when_enabled_without_value() {
+    let a = Args::parse_from(["tcping", "127.0.0.1:80", "--timestamp"]);
+    assert_eq!(a.timestamp_format(), Some(TimestampFormat::Iso8601));
+}
+
+#[test]
+fn date_alias_enables_iso8601_timestamps() {
+    let a = Args::parse_from(["tcping", "127.0.0.1:80", "--date"]);
+    assert_eq!(a.timestamp_format(), Some(TimestampFormat::Iso8601));
+}
+
+#[test]
+fn uppercase_d_enables_unix_timestamps() {
+    let a = Args::parse_from(["tcping", "127.0.0.1:80", "-D"]);
+    assert_eq!(a.timestamp_format(), Some(TimestampFormat::Unix));
+}
+
+#[test]
+fn timestamp_accepts_explicit_unix_value() {
+    let a = Args::parse_from(["tcping", "127.0.0.1:80", "--timestamp", "unix"]);
+    assert_eq!(a.timestamp_format(), Some(TimestampFormat::Unix));
 }

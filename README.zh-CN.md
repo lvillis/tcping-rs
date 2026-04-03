@@ -39,7 +39,7 @@
 ## 用法
 
 ```bash
-tcping <host:port> [-c count] [-t] [-e] [-j] [-o mode] [--timeout-ms ms]
+tcping <host:port> [-c count] [-t] [-e] [-j] [-o mode] [--timestamp[=format] | -D] [--timeout-ms ms]
 ```
 
 参数:
@@ -50,6 +50,8 @@ tcping <host:port> [-c count] [-t] [-e] [-j] [-o mode] [--timeout-ms ms]
 - `-e` 目标机器握手成功后立即退出
 - `-j` 开启抖动输出（每次探测 + 汇总 p95）
 - `-o mode` 设置输出格式 (`normal`, `json`, `csv`, `md`, `color`)
+- `--timestamp[=format]` 为每条 probe 和 summary 记录附加时间戳；默认 `iso8601`，`--date` 为别名
+- `-D` 是 `--timestamp unix` 的简写
 - `--timeout-ms` 单次探测超时时间(毫秒，默认: 2000)
 - `-h` 打印帮助信息
 - `-V` 打印程序版本
@@ -72,10 +74,26 @@ Round-trip min/avg/max = 11.4410/12.3425/12.7510 ms
 Address resolved in 0.9340 ms
 ```
 
+```bash
+$ tcping github.com:443 --timestamp -c 2
+
+Resolved github.com -> 140.82.113.4  (DNS system default)  in 0.9340 ms
+
+[2026-04-08T01:15:57.952Z] Probing 140.82.113.4:443/tcp - open - 12.7510 ms
+[2026-04-08T01:15:58.954Z] Probing 140.82.113.4:443/tcp - open - 12.4270 ms
+
+[2026-04-08T01:15:58.954Z] --- 140.82.113.4:443 tcping statistics ---
+2 probes sent, 2 successful, 0.00% packet loss
+Round-trip min/avg/max = 12.4270/12.5890/12.7510 ms
+Address resolved in 0.9340 ms
+```
+
 ## 输出格式
 
 - `-o json`: NDJSON（每行一个 JSON 对象），通过 `schema=tcping.v1` 和 `record=probe|summary` 区分记录类型
 - `-o csv`: 单一 CSV 输出流（带表头），通过 `schema=tcping.v1` 和 `record=probe|summary` 区分记录类型
+- 开启 `--timestamp` 或 `-D` 后，JSON 和 CSV 会升级为 `schema=tcping.v2`，并为每条 `probe` / `summary` 记录增加 `timestamp`（RFC 3339 UTC）和 `timestamp_unix_ms` 字段
+- 面向终端的输出（`normal`、`color`、`md`）直接使用所选样式：`iso8601` 输出毫秒精度的 RFC 3339 UTC，`unix` 输出 `秒.毫秒`
 
 ## 安装指南
 

@@ -8,7 +8,18 @@ use crate::cli::Args;
 use serde::Serialize;
 use std::net::SocketAddr;
 
-pub const OUTPUT_SCHEMA: &str = "tcping.v1";
+use crate::timestamp::RecordTimestamp;
+
+pub const OUTPUT_SCHEMA_V1: &str = "tcping.v1";
+pub const OUTPUT_SCHEMA_V2: &str = "tcping.v2";
+
+pub fn output_schema(include_timestamps: bool) -> &'static str {
+    if include_timestamps {
+        OUTPUT_SCHEMA_V2
+    } else {
+        OUTPUT_SCHEMA_V1
+    }
+}
 
 #[derive(Clone, Debug)]
 struct P2Quantile {
@@ -167,6 +178,7 @@ impl P2Quantile {
 pub struct PingResult {
     pub schema: &'static str,
     pub record: &'static str,
+    pub timestamp: Option<RecordTimestamp>,
     pub success: bool,
     pub duration_ms: f64,
     pub jitter_ms: Option<f64>,
@@ -178,6 +190,7 @@ pub struct PingResult {
 pub struct Summary {
     pub schema: &'static str,
     pub record: &'static str,
+    pub timestamp: Option<RecordTimestamp>,
     pub addr: SocketAddr,
     pub total_attempts: usize,
     pub successful_pings: usize,
@@ -200,11 +213,12 @@ pub struct Stats {
     last_rtt: Option<f64>,
     resolve_ms: f64,
     jitter_p95: Option<P2Quantile>,
+    schema: &'static str,
 }
 
 impl Stats {
     /// Create a new accumulator.
-    pub fn new(addr: SocketAddr, resolve_ms: f64) -> Self {
+    pub fn new(addr: SocketAddr, resolve_ms: f64, include_timestamps: bool) -> Self {
         Self {
             addr,
             sent: 0,
@@ -215,11 +229,18 @@ impl Stats {
             last_rtt: None,
             resolve_ms,
             jitter_p95: None,
+            schema: output_schema(include_timestamps),
         }
     }
 
     /// Feed one probe result and obtain a [PingResult] to hand to the formatter.
-    pub fn feed(&mut self, success: bool, rtt: f64, want_jitter: bool) -> PingResult {
+    pub fn feed(
+        &mut self,
+        success: bool,
+        rtt: f64,
+        want_jitter: bool,
+        timestamp: Option<RecordTimestamp>,
+    ) -> PingResult {
         self.sent += 1;
 
         let jitter = if want_jitter && success {
@@ -243,8 +264,9 @@ impl Stats {
         }
 
         PingResult {
-            schema: OUTPUT_SCHEMA,
+            schema: self.schema,
             record: "probe",
+            timestamp,
             success,
             duration_ms: rtt,
             jitter_ms: jitter,
@@ -263,7 +285,7 @@ impl Stats {
     }
 
     /// Produce the final [Summary].
-    pub fn summary(&self) -> Summary {
+    pub fn summary(&self, timestamp: Option<RecordTimestamp>) -> Summary {
         let packet_loss = if self.sent == 0 {
             0.0
         } else {
@@ -271,8 +293,9 @@ impl Stats {
         };
 
         Summary {
-            schema: OUTPUT_SCHEMA,
+            schema: self.schema,
             record: "summary",
+            timestamp,
             addr: self.addr,
             total_attempts: self.sent,
             successful_pings: self.ok,
@@ -310,54 +333,63 @@ mod tests {
 
     #[test]
     fn summary_handles_zero_probes() {
-        let stats = Stats::new(loopback_addr(), 0.0);
-        let summary = stats.summary();
+        let stats = Stats::new(loopback_addr(), 0.0, false);
+        let summary = stats.summary(None);
         assert_eq!(summary.total_attempts, 0);
         assert_eq!(summary.packet_loss, 0.0);
     }
 
     #[test]
     fn jitter_is_difference_between_successive_successes() {
-        let mut stats = Stats::new(loopback_addr(), 0.0);
-        let first = stats.feed(true, 10.0, true);
+        let mut stats = Stats::new(loopback_addr(), 0.0, false);
+        let first = stats.feed(true, 10.0, true, None);
         assert_eq!(first.jitter_ms, None);
 
-        let second = stats.feed(true, 15.0, true);
+        let second = stats.feed(true, 15.0, true, None);
         assert_eq!(second.jitter_ms, Some(5.0));
     }
 
     #[test]
     fn jitter_p95_is_reported_when_enabled() {
-        let mut stats = Stats::new(loopback_addr(), 0.0);
-        stats.feed(true, 10.0, true);
-        stats.feed(true, 20.0, true); // jitter 10
-        stats.feed(true, 25.0, true); // jitter 5
-        stats.feed(true, 40.0, true); // jitter 15
+        let mut stats = Stats::new(loopback_addr(), 0.0, false);
+        stats.feed(true, 10.0, true, None);
+        stats.feed(true, 20.0, true, None); // jitter 10
+        stats.feed(true, 25.0, true, None); // jitter 5
+        stats.feed(true, 40.0, true, None); // jitter 15
 
-        let summary = stats.summary();
+        let summary = stats.summary(None);
         assert_eq!(summary.jitter_p95_ms, Some(14.5));
     }
 
     #[test]
     fn jitter_p95_is_none_when_disabled() {
-        let mut stats = Stats::new(loopback_addr(), 0.0);
-        stats.feed(true, 10.0, false);
-        stats.feed(true, 20.0, false);
+        let mut stats = Stats::new(loopback_addr(), 0.0, false);
+        stats.feed(true, 10.0, false, None);
+        stats.feed(true, 20.0, false, None);
 
-        let summary = stats.summary();
+        let summary = stats.summary(None);
         assert_eq!(summary.jitter_p95_ms, None);
     }
 
     #[test]
     fn jitter_is_only_computed_for_successes() {
-        let mut stats = Stats::new(loopback_addr(), 0.0);
-        let first = stats.feed(true, 10.0, true);
+        let mut stats = Stats::new(loopback_addr(), 0.0, false);
+        let first = stats.feed(true, 10.0, true, None);
         assert_eq!(first.jitter_ms, None);
 
-        let failed = stats.feed(false, 10_000.0, true);
+        let failed = stats.feed(false, 10_000.0, true, None);
         assert_eq!(failed.jitter_ms, None);
 
-        let second = stats.feed(true, 20.0, true);
+        let second = stats.feed(true, 20.0, true, None);
         assert_eq!(second.jitter_ms, Some(10.0));
+    }
+
+    #[test]
+    fn schema_upgrades_only_when_timestamps_are_enabled() {
+        let without_timestamps = Stats::new(loopback_addr(), 0.0, false);
+        assert_eq!(without_timestamps.summary(None).schema, OUTPUT_SCHEMA_V1);
+
+        let with_timestamps = Stats::new(loopback_addr(), 0.0, true);
+        assert_eq!(with_timestamps.summary(None).schema, OUTPUT_SCHEMA_V2);
     }
 }

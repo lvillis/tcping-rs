@@ -1,10 +1,10 @@
-#!/usr/bin/env just --justfile
+set shell := ["bash", "-euo", "pipefail", "-c"]
 
-release-patch:
+patch:
     cargo release patch --no-publish --execute
 
-release-minor:
-    cargo release minor --no-publish --execute
+publish:
+  cargo publish
 
-release-major:
-    cargo release major --no-publish --execute
+ci:
+  cargo fmt --all --check

@@ -5,16 +5,24 @@ on:
     tags:
       - '*'
 
-permissions:
-  contents: write
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   PROJECT: tcping
+  RUST_TOOLCHAIN: 1.94.1
+  CROSS_VERSION: v0.2.5
+  CROSS_X86_64_UNKNOWN_LINUX_MUSL_SHA256: a486cefa6cb486971b97be321ea9dfc2e90c1979550295314a368f53fab6d588
+  GIT_CLIFF_VERSION: v2.12.0
+  GIT_CLIFF_X86_64_UNKNOWN_LINUX_MUSL_SHA256: c89a7bc55f3c51f391938aa3fa560125109695c1930d927879daea68dd786420
 
 jobs:
   build:
     name: build-${{ matrix.target }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -55,79 +63,92 @@ jobs:
         shell: bash
         run: |
           VERSION="${GITHUB_REF#refs/tags/}"
-          echo "PROJECT_VERSION=${VERSION}" >> "$GITHUB_ENV"
-          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.92.0
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Add GNU target
-        if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
+      - name: Install Rust toolchain
         shell: bash
-        run: rustup target add x86_64-pc-windows-gnu
+        run: |
+          rustup set profile minimal
+          rustup toolchain install "${RUST_TOOLCHAIN}"
+          rustup override set "${RUST_TOOLCHAIN}"
+          rustup target add --toolchain "${RUST_TOOLCHAIN}" "${{ matrix.target }}"
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-registry-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-registry-${{ env.RUST_TOOLCHAIN }}-
 
       - name: Install MinGW toolchain
         if: ${{ matrix.target == 'x86_64-pc-windows-gnu' }}
         shell: powershell
         run: choco install mingw --no-progress --yes
 
-      - name: Setup native compilation
-        if: ${{ matrix.use-cross == false }}
-        shell: bash
-        run: echo "CARGO=cargo" >> "$GITHUB_ENV"
-
-      - name: Setup cross compilation
+      - name: Install cross
         if: ${{ matrix.use-cross == true }}
         shell: bash
         run: |
-          dir="$RUNNER_TEMP/cross"
-          mkdir -p "$dir"
-          echo "$dir" >> "$GITHUB_PATH"
-          cd "$dir"
-          curl -LSf -o cross.tar.gz https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-musl.tar.gz
-          tar xf cross.tar.gz
-          echo "CARGO=cross" >> "$GITHUB_ENV"
-          echo "RUSTFLAGS=--cfg ${{ env.PROJECT }}" >> "$GITHUB_ENV"
-          echo "TARGET_DIR=./target/${{ matrix.target }}" >> "$GITHUB_ENV"
+          archive="cross-x86_64-unknown-linux-musl.tar.gz"
+          url="https://github.com/cross-rs/cross/releases/download/${CROSS_VERSION}/${archive}"
+          dir="${RUNNER_TEMP}/cross"
+          mkdir -p "${dir}" "${HOME}/.local/bin"
+          curl -LSsf -H 'User-Agent: github-actions' "${url}" -o "${dir}/${archive}"
+          echo "${CROSS_X86_64_UNKNOWN_LINUX_MUSL_SHA256}  ${dir}/${archive}" | sha256sum -c -
+          tar -xzf "${dir}/${archive}" -C "${dir}"
+          install "${dir}/cross" "${HOME}/.local/bin/cross"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
 
       - name: Build
         shell: bash
         run: |
-          : "${CARGO:=cargo}"
-          $CARGO build --release --target ${{ matrix.target }}
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            echo "BIN_NAME=${{ env.PROJECT }}.exe" >> "$GITHUB_ENV"
+          if [ "${{ matrix.use-cross }}" = "true" ]; then
+            cross build --release --locked --target "${{ matrix.target }}"
           else
-            echo "BIN_NAME=${{ env.PROJECT }}" >> "$GITHUB_ENV"
+            cargo build --release --locked --target "${{ matrix.target }}"
           fi
 
       - name: Package
+        id: package
         shell: bash
         run: |
-          staging="${{ env.PROJECT }}-${{ env.PROJECT_VERSION }}-${{ matrix.target }}"
+          staging="${{ env.PROJECT }}-${{ steps.version.outputs.version }}-${{ matrix.target }}"
+          bin="${{ env.PROJECT }}"
+
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            bin="${bin}.exe"
+          fi
+
           mkdir "$staging"
           cp README.md LICENSE "$staging/"
+          cp "target/${{ matrix.target }}/release/${bin}" "$staging/"
+
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}" "$staging/"
-            7z a "$staging.zip" "$staging" >/dev/null
-            echo "ASSET=$staging.zip" >> "$GITHUB_ENV"
+            asset="$staging.zip"
+            7z a "$asset" "$staging" >/dev/null
           else
-            cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}" "$staging/"
-            tar czf "$staging.tar.gz" "$staging"
-            echo "ASSET=$staging.tar.gz" >> "$GITHUB_ENV"
+            asset="$staging.tar.gz"
+            tar czf "$asset" "$staging"
           fi
+
+          echo "asset=${asset}" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.target }}
-          path: ${{ env.ASSET }}
+          path: ${{ steps.package.outputs.asset }}
+          compression-level: 0
 
   release:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -139,30 +160,50 @@ jobs:
         shell: bash
         run: |
           VERSION="${GITHUB_REF#refs/tags/}"
-          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "PROJECT_VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Download artifacts
         uses: actions/download-artifact@v7
         with:
           path: dist
 
+      - name: Collect release assets
+        shell: bash
+        run: |
+          mkdir -p dist/release-assets
+          find dist -mindepth 2 -maxdepth 2 -type f -exec cp {} dist/release-assets/ \;
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd dist/release-assets
+          find . -maxdepth 1 -type f -printf '%P\n' | sort | xargs sha256sum > SHA256SUMS
+
+      - name: Install git-cliff
+        shell: bash
+        run: |
+          version="${GIT_CLIFF_VERSION#v}"
+          archive="git-cliff-${version}-x86_64-unknown-linux-musl.tar.gz"
+          url="https://github.com/orhun/git-cliff/releases/download/${GIT_CLIFF_VERSION}/${archive}"
+          dir="${RUNNER_TEMP}/git-cliff"
+          mkdir -p "${dir}" "${HOME}/.local/bin"
+          curl -LSsf -H 'User-Agent: github-actions' "${url}" -o "${dir}/${archive}"
+          echo "${GIT_CLIFF_X86_64_UNKNOWN_LINUX_MUSL_SHA256}  ${dir}/${archive}" | sha256sum -c -
+          tar -xzf "${dir}/${archive}" -C "${dir}"
+          install "${dir}/git-cliff" "${HOME}/.local/bin/git-cliff"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+
       - name: Generate changelog
-        uses: orhun/git-cliff-action@v4
-        id: cliff
-        with:
-          config: cliff.toml
-          args: --latest --tag ${{ steps.version.outputs.VERSION }} --strip header
-        env:
-          OUTPUT: RELEASE_NOTES.md
+        shell: bash
+        run: git-cliff --config cliff.toml --latest --tag "${{ steps.version.outputs.version }}" --strip header -o RELEASE_NOTES.md
 
       - name: Create or update GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tag="${{ steps.version.outputs.VERSION }}"
+          tag="${{ steps.version.outputs.version }}"
           title="tcping ${tag}"
-          assets=$(find dist -type f -maxdepth 2)
+          assets=$(find dist/release-assets -maxdepth 1 -type f | sort)
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" $assets --clobber
             gh release edit "$tag" --title "$title" --notes-file RELEASE_NOTES.md

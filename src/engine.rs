@@ -11,6 +11,7 @@ use crate::{
     formatter::{self, Formatter},
     probe::probe_once,
     stats::Stats,
+    timestamp::RecordTimestamp,
 };
 use std::{
     net::{IpAddr, SocketAddr},
@@ -104,6 +105,8 @@ pub fn run(args: Args) -> Result<i32> {
 
 /// Async tcping session.
 pub async fn run_async(args: Args) -> Result<i32> {
+    let timestamp_format = args.timestamp_format();
+
     /* ---------- target parsing ---------- */
     let parsed = ParsedTarget::new(&args.address)?;
 
@@ -141,8 +144,8 @@ pub async fn run_async(args: Args) -> Result<i32> {
     }
 
     /* ---------- stats & formatter ---------- */
-    let mut stats = Stats::new(addr, resolve_ms);
-    let fmt: Box<dyn Formatter> = formatter::from_mode(args.output_mode);
+    let mut stats = Stats::new(addr, resolve_ms, timestamp_format.is_some());
+    let fmt: Box<dyn Formatter> = formatter::from_mode(args.output_mode, timestamp_format);
 
     /* ---------- Ctrl-C future ---------- */
     let sigint = signal::ctrl_c();
@@ -168,7 +171,8 @@ pub async fn run_async(args: Args) -> Result<i32> {
         }
 
         let (ok, rtt) = probe_once(addr, timeout).await;
-        let res = stats.feed(ok, rtt, args.jitter);
+        let emitted_at = timestamp_format.map(|_| RecordTimestamp::now());
+        let res = stats.feed(ok, rtt, args.jitter, emitted_at);
         fmt.probe(&res);
 
         if stats.should_break(ok, &args) || !stats.should_continue(&args) {
@@ -177,7 +181,8 @@ pub async fn run_async(args: Args) -> Result<i32> {
     }
 
     /* ---------- summary ---------- */
-    fmt.summary(&stats.summary());
+    let summary_timestamp = timestamp_format.map(|_| RecordTimestamp::now());
+    fmt.summary(&stats.summary(summary_timestamp));
     Ok(stats.exit_code())
 }
 

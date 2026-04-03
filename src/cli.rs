@@ -1,6 +1,6 @@
 //! Argument parsing layer (clap).
 
-use clap::{Parser, ValueEnum};
+use clap::{ArgAction, ArgGroup, Parser, ValueEnum};
 
 fn parse_positive_usize(value: &str) -> Result<usize, String> {
     let count: usize = value
@@ -27,6 +27,11 @@ fn parse_positive_u64(value: &str) -> Result<u64, String> {
 /// Global CLI arguments.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
+#[command(group(
+    ArgGroup::new("timestamp_mode")
+        .args(["timestamp", "unix_timestamp"])
+        .multiple(false)
+))]
 pub struct Args {
     /// Target in the form `<host:port>`
     pub address: String,
@@ -63,6 +68,27 @@ pub struct Args {
     #[arg(short = 'j', long)]
     pub jitter: bool,
 
+    /// Emit timestamps with every probe and summary record
+    #[arg(
+        long,
+        visible_alias = "date",
+        value_enum,
+        num_args = 0..=1,
+        default_missing_value = "iso8601",
+        group = "timestamp_mode",
+        help = "Emit timestamps with every probe and summary record (default: iso8601)"
+    )]
+    pub timestamp: Option<TimestampFormat>,
+
+    /// Shorthand for `--timestamp unix`
+    #[arg(
+        short = 'D',
+        action = ArgAction::SetTrue,
+        group = "timestamp_mode",
+        help = "Emit Unix epoch timestamps with every probe and summary record"
+    )]
+    pub unix_timestamp: bool,
+
     /// Timeout per probe (ms)
     #[arg(
         long,
@@ -81,4 +107,22 @@ pub enum OutputMode {
     Csv,
     Md,    // Markdown
     Color, // ANSI-colored TTY
+}
+
+/// Human-facing timestamp styles.
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TimestampFormat {
+    Unix,
+    Iso8601,
+}
+
+impl Args {
+    /// Resolve the requested timestamp mode after clap parsing.
+    pub fn timestamp_format(&self) -> Option<TimestampFormat> {
+        if self.unix_timestamp {
+            Some(TimestampFormat::Unix)
+        } else {
+            self.timestamp
+        }
+    }
 }

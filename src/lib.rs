@@ -7,3 +7,4 @@ pub mod error;
 pub mod formatter;
 pub mod probe;
 pub mod stats;
+pub mod timestamp;

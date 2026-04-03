@@ -39,7 +39,7 @@
 ## Usage
 
 ```bash
-tcping <host:port> [-c count] [-t] [-e] [-j] [-o mode] [--timeout-ms ms]
+tcping <host:port> [-c count] [-t] [-e] [-j] [-o mode] [--timestamp[=format] | -D] [--timeout-ms ms]
 ```
 
 Where:
@@ -50,6 +50,8 @@ Where:
 - `-e` exits immediately after a successful probe
 - `-j` enables jitter output (per-probe + p95 in summary)
 - `-o mode` sets the output mode (`normal`, `json`, `csv`, `md`, `color`)
+- `--timestamp[=format]` emits timestamps with every probe and summary record; defaults to `iso8601`, and `--date` is an alias
+- `-D` is shorthand for `--timestamp unix`
 - `--timeout-ms` sets per-probe timeout in milliseconds (default: 2000)
 - `-h` displays help
 - `-V` displays version
@@ -72,10 +74,26 @@ Round-trip min/avg/max = 11.4410/12.3425/12.7510 ms
 Address resolved in 0.9340 ms
 ```
 
+```bash
+$ tcping github.com:443 --timestamp -c 2
+
+Resolved github.com -> 140.82.113.4  (DNS system default)  in 0.9340 ms
+
+[2026-04-08T01:15:57.952Z] Probing 140.82.113.4:443/tcp - open - 12.7510 ms
+[2026-04-08T01:15:58.954Z] Probing 140.82.113.4:443/tcp - open - 12.4270 ms
+
+[2026-04-08T01:15:58.954Z] --- 140.82.113.4:443 tcping statistics ---
+2 probes sent, 2 successful, 0.00% packet loss
+Round-trip min/avg/max = 12.4270/12.5890/12.7510 ms
+Address resolved in 0.9340 ms
+```
+
 ## Output formats
 
 - `-o json`: NDJSON (one JSON object per line) with `schema=tcping.v1` and `record=probe|summary`
 - `-o csv`: single CSV stream with a header row, with `schema=tcping.v1` and `record=probe|summary`
+- When `--timestamp` or `-D` is enabled, JSON and CSV upgrade to `schema=tcping.v2` and add `timestamp` (RFC 3339 UTC) plus `timestamp_unix_ms` fields to every `probe` and `summary` record
+- Human-oriented outputs (`normal`, `color`, `md`) use the requested style directly: `iso8601` renders RFC 3339 UTC with millisecond precision, `unix` renders `seconds.millis`
 
 ## Installation
 
