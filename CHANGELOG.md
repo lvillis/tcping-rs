@@ -1,3 +1,8 @@
+## [1.2.26] - 2026-04-08
+
+### 🐛 Bug Fixes
+
+- Ci
 ## [1.2.25] - 2026-04-08
 
 ### 🚀 Features
@@ -7,6 +12,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - Use nextest
+- Release tcping version 1.2.25
 ## [1.2.24] - 2025-12-12
 
 ### ⚙️ Miscellaneous Tasks
