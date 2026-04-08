@@ -100,6 +100,9 @@ mod tests {
     #[test]
     fn unix_render_uses_seconds_with_millis() {
         let ts = RecordTimestamp::from_unix_ms(1_746_072_812_345);
-        assert_eq!(ts.render(TimestampFormat::Unix).to_string(), "1746072812.345");
+        assert_eq!(
+            ts.render(TimestampFormat::Unix).to_string(),
+            "1746072812.345"
+        );
     }
 }

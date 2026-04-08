@@ -547,7 +547,7 @@ mod tests {
 
         let probe_row = Csv::probe_row(&sample_result(true, None, None, OUTPUT_SCHEMA_V1));
         assert_eq!(probe_row.split(',').count(), CSV_COLUMNS_V1);
-        assert_eq!(probe_row.split(',').last(), Some(OUTPUT_SCHEMA_V1));
+        assert_eq!(probe_row.split(',').next_back(), Some(OUTPUT_SCHEMA_V1));
 
         let probe_row = Csv::probe_row(&sample_result(
             true,
@@ -556,7 +556,7 @@ mod tests {
             OUTPUT_SCHEMA_V2,
         ));
         assert_eq!(probe_row.split(',').count(), CSV_COLUMNS_V2);
-        assert_eq!(probe_row.split(',').last(), Some(OUTPUT_SCHEMA_V2));
+        assert_eq!(probe_row.split(',').next_back(), Some(OUTPUT_SCHEMA_V2));
 
         let summary_row = Csv::summary_row(&sample_summary(
             Some(1.23),
@@ -564,7 +564,7 @@ mod tests {
             OUTPUT_SCHEMA_V2,
         ));
         assert_eq!(summary_row.split(',').count(), CSV_COLUMNS_V2);
-        assert_eq!(summary_row.split(',').last(), Some(OUTPUT_SCHEMA_V2));
+        assert_eq!(summary_row.split(',').next_back(), Some(OUTPUT_SCHEMA_V2));
     }
 
     #[test]
