@@ -1,8 +1,18 @@
+## [1.2.25] - 2026-04-08
+
+### 🚀 Features
+
+- Add per-record timestamps to tcping output
+
+### ⚙️ Miscellaneous Tasks
+
+- Use nextest
 ## [1.2.24] - 2025-12-12
 
 ### ⚙️ Miscellaneous Tasks
 
 - *(ci)* Remove x86_64-apple-darwin
+- Release tcping version 1.2.24
 ## [1.2.23] - 2025-12-12
 
 ### 🐛 Bug Fixes
