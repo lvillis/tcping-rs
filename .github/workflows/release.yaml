@@ -186,11 +186,12 @@ jobs:
           archive="git-cliff-${version}-x86_64-unknown-linux-musl.tar.gz"
           url="https://github.com/orhun/git-cliff/releases/download/${GIT_CLIFF_VERSION}/${archive}"
           dir="${RUNNER_TEMP}/git-cliff"
+          extracted_dir="${dir}/git-cliff-${version}"
           mkdir -p "${dir}" "${HOME}/.local/bin"
           curl -LSsf -H 'User-Agent: github-actions' "${url}" -o "${dir}/${archive}"
           echo "${GIT_CLIFF_X86_64_UNKNOWN_LINUX_MUSL_SHA256}  ${dir}/${archive}" | sha256sum -c -
           tar -xzf "${dir}/${archive}" -C "${dir}"
-          install "${dir}/git-cliff" "${HOME}/.local/bin/git-cliff"
+          install "${extracted_dir}/git-cliff" "${HOME}/.local/bin/git-cliff"
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
 
       - name: Generate changelog
