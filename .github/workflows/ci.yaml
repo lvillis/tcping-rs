@@ -35,7 +35,7 @@ jobs:
           rustup override set "${RUST_TOOLCHAIN}"
 
       - name: Cache Cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry/index/
@@ -70,7 +70,7 @@ jobs:
           rustup override set "${RUST_TOOLCHAIN}"
 
       - name: Cache Cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry/index/

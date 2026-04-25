@@ -74,7 +74,7 @@ jobs:
           rustup target add --toolchain "${RUST_TOOLCHAIN}" "${{ matrix.target }}"
 
       - name: Cache Cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry/index/
