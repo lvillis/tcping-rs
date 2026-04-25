@@ -32,9 +32,9 @@ fn parse_positive_u64(value: &str) -> Result<u64, String> {
         .args(["timestamp", "unix_timestamp"])
         .multiple(false)
 ))]
-pub struct Args {
+pub(crate) struct Args {
     /// Target in the form `<host:port>`
-    pub address: String,
+    pub(crate) address: String,
 
     /// Number of probes (`-c`)
     #[arg(
@@ -44,11 +44,11 @@ pub struct Args {
         value_parser = parse_positive_usize,
         help = "Total probes to send (must be >= 1)"
     )]
-    pub count: usize,
+    pub(crate) count: usize,
 
     /// Keep probing until Ctrl-C (`-t`)
     #[arg(short = 't', long)]
-    pub continuous: bool,
+    pub(crate) continuous: bool,
 
     /// Output format (`-o`)
     #[arg(
@@ -58,15 +58,15 @@ pub struct Args {
         default_value_t = OutputMode::Normal,
         help = "normal | json | csv | md | color"
     )]
-    pub output_mode: OutputMode,
+    pub(crate) output_mode: OutputMode,
 
     /// Exit after first success (`-e`)
     #[arg(short = 'e', long)]
-    pub exit_on_success: bool,
+    pub(crate) exit_on_success: bool,
 
     /// Show per-probe jitter (`-j`)
     #[arg(short = 'j', long)]
-    pub jitter: bool,
+    pub(crate) jitter: bool,
 
     /// Emit timestamps with every probe and summary record
     #[arg(
@@ -78,7 +78,7 @@ pub struct Args {
         group = "timestamp_mode",
         help = "Emit timestamps with every probe and summary record (default: iso8601)"
     )]
-    pub timestamp: Option<TimestampFormat>,
+    pub(crate) timestamp: Option<TimestampFormat>,
 
     /// Shorthand for `--timestamp unix`
     #[arg(
@@ -87,7 +87,7 @@ pub struct Args {
         group = "timestamp_mode",
         help = "Emit Unix epoch timestamps with every probe and summary record"
     )]
-    pub unix_timestamp: bool,
+    pub(crate) unix_timestamp: bool,
 
     /// Timeout per probe (ms)
     #[arg(
@@ -96,12 +96,12 @@ pub struct Args {
         value_parser = parse_positive_u64,
         help = "Per-probe timeout in milliseconds (must be >= 1)"
     )]
-    pub timeout_ms: u64,
+    pub(crate) timeout_ms: u64,
 }
 
 /// Supported output modes.
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
-pub enum OutputMode {
+pub(crate) enum OutputMode {
     Normal,
     Json,
     Csv,
@@ -111,18 +111,95 @@ pub enum OutputMode {
 
 /// Human-facing timestamp styles.
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TimestampFormat {
+pub(crate) enum TimestampFormat {
     Unix,
     Iso8601,
 }
 
 impl Args {
     /// Resolve the requested timestamp mode after clap parsing.
-    pub fn timestamp_format(&self) -> Option<TimestampFormat> {
+    pub(crate) fn timestamp_format(&self) -> Option<TimestampFormat> {
         if self.unix_timestamp {
             Some(TimestampFormat::Unix)
         } else {
             self.timestamp
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+    use std::net::ToSocketAddrs;
+
+    #[test]
+    fn parse_basic() {
+        let a = Args::parse_from(["tcping", "127.0.0.1:80", "-c", "5"]);
+        assert_eq!(a.address, "127.0.0.1:80");
+        assert_eq!(a.count, 5);
+        assert!(!a.continuous);
+        assert_eq!(a.output_mode, OutputMode::Normal);
+        assert_eq!(a.timestamp_format(), None);
+    }
+
+    #[test]
+    fn continuous_flag() {
+        let a = Args::parse_from(["tcping", "127.0.0.1:80", "-t"]);
+        assert!(a.continuous);
+    }
+
+    #[test]
+    fn resolve_localhost() {
+        assert!("localhost:80".to_socket_addrs().is_ok());
+    }
+
+    #[test]
+    fn output_mode_json() {
+        let a = Args::parse_from(["tcping", "127.0.0.1:80", "-o", "json"]);
+        assert_eq!(a.output_mode, OutputMode::Json);
+    }
+
+    #[test]
+    fn exit_on_success() {
+        let a = Args::parse_from(["tcping", "127.0.0.1:80", "-e"]);
+        assert!(a.exit_on_success);
+    }
+
+    #[test]
+    fn reject_zero_count() {
+        let err = Args::try_parse_from(["tcping", "127.0.0.1:80", "-c", "0"]).unwrap_err();
+        assert!(err.to_string().contains(">= 1"));
+    }
+
+    #[test]
+    fn reject_zero_timeout() {
+        let err =
+            Args::try_parse_from(["tcping", "127.0.0.1:80", "--timeout-ms", "0"]).unwrap_err();
+        assert!(err.to_string().contains(">= 1"));
+    }
+
+    #[test]
+    fn timestamp_defaults_to_iso8601_when_enabled_without_value() {
+        let a = Args::parse_from(["tcping", "127.0.0.1:80", "--timestamp"]);
+        assert_eq!(a.timestamp_format(), Some(TimestampFormat::Iso8601));
+    }
+
+    #[test]
+    fn date_alias_enables_iso8601_timestamps() {
+        let a = Args::parse_from(["tcping", "127.0.0.1:80", "--date"]);
+        assert_eq!(a.timestamp_format(), Some(TimestampFormat::Iso8601));
+    }
+
+    #[test]
+    fn uppercase_d_enables_unix_timestamps() {
+        let a = Args::parse_from(["tcping", "127.0.0.1:80", "-D"]);
+        assert_eq!(a.timestamp_format(), Some(TimestampFormat::Unix));
+    }
+
+    #[test]
+    fn timestamp_accepts_explicit_unix_value() {
+        let a = Args::parse_from(["tcping", "127.0.0.1:80", "--timestamp", "unix"]);
+        assert_eq!(a.timestamp_format(), Some(TimestampFormat::Unix));
     }
 }

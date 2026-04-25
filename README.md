@@ -32,6 +32,7 @@
 | **Cross-platform**           | Linux, macOS, Windows, *BSD, and any Tier-1 Rust target                   |
 | **Continuous / Burst modes** | `-t` for continuous, `-c` for specific count, plus `-e` early exit        |
 | **Machine-readable output**  | JSON (NDJSON) / CSV / Markdown via `-o`, ideal for scripts & monitoring   |
+| **Library API**              | Structured Rust API for embedding probes without parsing stdout           |
 | **Jitter stats**             | `-j` prints per-probe jitter and a p95 summary                            |
 | **Docker image**             | Multi-arch (`amd64` / `arm64`) for pipelines or Kubernetes Jobs           |
 
@@ -71,7 +72,6 @@ Probing 140.82.113.4:443/tcp - open - 12.7510 ms
 --- 140.82.113.4:443 tcping statistics ---
 4 probes sent, 4 successful, 0.00% packet loss
 Round-trip min/avg/max = 11.4410/12.3425/12.7510 ms
-Address resolved in 0.9340 ms
 ```
 
 ```bash
@@ -85,7 +85,6 @@ Resolved github.com -> 140.82.113.4  (DNS system default)  in 0.9340 ms
 [2026-04-08T01:15:58.954Z] --- 140.82.113.4:443 tcping statistics ---
 2 probes sent, 2 successful, 0.00% packet loss
 Round-trip min/avg/max = 12.4270/12.5890/12.7510 ms
-Address resolved in 0.9340 ms
 ```
 
 ## Output formats
@@ -94,6 +93,42 @@ Address resolved in 0.9340 ms
 - `-o csv`: single CSV stream with a header row, with `schema=tcping.v1` and `record=probe|summary`
 - When `--timestamp` or `-D` is enabled, JSON and CSV upgrade to `schema=tcping.v2` and add `timestamp` (RFC 3339 UTC) plus `timestamp_unix_ms` fields to every `probe` and `summary` record
 - Human-oriented outputs (`normal`, `color`, `md`) use the requested style directly: `iso8601` renders RFC 3339 UTC with millisecond precision, `unix` renders `seconds.millis`
+
+## Library API
+
+`tcping-rs` can also be used as a Rust library. The library API does not write to stdout; it returns structured session data or emits structured events for long-running probes.
+
+For a minimal library dependency without the CLI-only `clap` / `serde_json` stack, disable default features:
+
+```toml
+[dependencies]
+tcping = { version = "1", default-features = false }
+```
+
+```rust
+use std::time::Duration;
+use tcping::{PingOptions, Target, run_collect_async};
+
+async fn example() -> tcping::Result<()> {
+    let target = Target::parse("github.com:443")?;
+    let options = PingOptions::new(target)
+        .with_count(4)?
+        .with_timeout(Duration::from_millis(2_000))
+        .jitter(true)
+        .timestamps(true);
+
+    let session = run_collect_async(options).await?;
+    println!("{:?}", session.summary);
+    Ok(())
+}
+```
+
+For continuous monitoring, use `run_with_handler_async` or `run_with_handler_until` and consume `PingEvent::Probe` / `PingEvent::Summary` as they are produced.
+
+Features:
+
+- `cli` (enabled by default): builds the `tcping` binary and enables CLI output dependencies
+- `serde`: derives `Serialize` for structured library records
 
 ## Installation
 

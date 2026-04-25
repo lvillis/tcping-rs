@@ -32,6 +32,7 @@
 | **跨平台**         | 支持Linux、macOS、Windows、*BSD及所有Rust T1级支持的平台            |
 | **多种模式**       | `-t` 持续运行, `-c` 指定次数, `-e` 支持提前退出                     |
 | **机器可读输出**   | `-o` 支持 JSON(NDJSON) / CSV / Markdown，适用于脚本与监控           |
+| **库 API**         | 提供结构化 Rust API，可嵌入探测逻辑，无需解析 stdout                |
 | **抖动统计**       | `-j` 输出每次探测抖动，并在汇总中给出 p95                           |
 | **Docker镜像**     | 提供多架构镜像(`amd64` / `arm64`)，适配CI/CD流水线与Kubernetes任务  |
 
@@ -71,7 +72,6 @@ Probing 140.82.113.4:443/tcp - open - 12.7510 ms
 --- 140.82.113.4:443 tcping statistics ---
 4 probes sent, 4 successful, 0.00% packet loss
 Round-trip min/avg/max = 11.4410/12.3425/12.7510 ms
-Address resolved in 0.9340 ms
 ```
 
 ```bash
@@ -85,7 +85,6 @@ Resolved github.com -> 140.82.113.4  (DNS system default)  in 0.9340 ms
 [2026-04-08T01:15:58.954Z] --- 140.82.113.4:443 tcping statistics ---
 2 probes sent, 2 successful, 0.00% packet loss
 Round-trip min/avg/max = 12.4270/12.5890/12.7510 ms
-Address resolved in 0.9340 ms
 ```
 
 ## 输出格式
@@ -94,6 +93,42 @@ Address resolved in 0.9340 ms
 - `-o csv`: 单一 CSV 输出流（带表头），通过 `schema=tcping.v1` 和 `record=probe|summary` 区分记录类型
 - 开启 `--timestamp` 或 `-D` 后，JSON 和 CSV 会升级为 `schema=tcping.v2`，并为每条 `probe` / `summary` 记录增加 `timestamp`（RFC 3339 UTC）和 `timestamp_unix_ms` 字段
 - 面向终端的输出（`normal`、`color`、`md`）直接使用所选样式：`iso8601` 输出毫秒精度的 RFC 3339 UTC，`unix` 输出 `秒.毫秒`
+
+## 库 API
+
+`tcping-rs` 也可以作为 Rust 库使用。库 API 不写入 stdout，而是返回结构化会话结果，或为长时间探测持续产生结构化事件。
+
+如果只作为库依赖，并且不需要 CLI 专用的 `clap` / `serde_json` 依赖，可以关闭默认 feature：
+
+```toml
+[dependencies]
+tcping = { version = "1", default-features = false }
+```
+
+```rust
+use std::time::Duration;
+use tcping::{PingOptions, Target, run_collect_async};
+
+async fn example() -> tcping::Result<()> {
+    let target = Target::parse("github.com:443")?;
+    let options = PingOptions::new(target)
+        .with_count(4)?
+        .with_timeout(Duration::from_millis(2_000))
+        .jitter(true)
+        .timestamps(true);
+
+    let session = run_collect_async(options).await?;
+    println!("{:?}", session.summary);
+    Ok(())
+}
+```
+
+持续监控场景使用 `run_with_handler_async` 或 `run_with_handler_until`，按需消费 `PingEvent::Probe` / `PingEvent::Summary`。
+
+Features:
+
+- `cli`（默认开启）：构建 `tcping` 二进制，并启用 CLI 输出依赖
+- `serde`：为结构化库记录派生 `Serialize`
 
 ## 安装指南
 

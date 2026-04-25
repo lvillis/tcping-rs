@@ -4,8 +4,6 @@
 //! Both [PingResult] and [Summary] are serde-serialisable so the
 //! formatting layer can dump them directly.
 
-use crate::cli::Args;
-use serde::Serialize;
 use std::net::SocketAddr;
 
 use crate::timestamp::RecordTimestamp;
@@ -174,7 +172,8 @@ impl P2Quantile {
 /// Result of a single probe.
 ///
 /// This structure may be serialised as JSON / CSV by the formatter layer.
-#[derive(Clone, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct PingResult {
     pub schema: &'static str,
     pub record: &'static str,
@@ -186,7 +185,8 @@ pub struct PingResult {
 }
 
 /// Roll-up of an entire probing session.
-#[derive(Serialize)]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Summary {
     pub schema: &'static str,
     pub record: &'static str,
@@ -202,8 +202,19 @@ pub struct Summary {
     pub jitter_p95_ms: Option<f64>,
 }
 
+impl Summary {
+    /// Map this summary to a conventional Unix process exit code.
+    pub fn exit_code(&self) -> i32 {
+        if self.successful_pings == self.total_attempts && self.total_attempts > 0 {
+            0
+        } else {
+            1
+        }
+    }
+}
+
 /// Mutable accumulator used during a session.
-pub struct Stats {
+pub(crate) struct Stats {
     addr: SocketAddr,
     sent: usize,
     ok: usize,
@@ -218,7 +229,7 @@ pub struct Stats {
 
 impl Stats {
     /// Create a new accumulator.
-    pub fn new(addr: SocketAddr, resolve_ms: f64, include_timestamps: bool) -> Self {
+    pub(crate) fn new(addr: SocketAddr, resolve_ms: f64, include_timestamps: bool) -> Self {
         Self {
             addr,
             sent: 0,
@@ -234,7 +245,7 @@ impl Stats {
     }
 
     /// Feed one probe result and obtain a [PingResult] to hand to the formatter.
-    pub fn feed(
+    pub(crate) fn feed(
         &mut self,
         success: bool,
         rtt: f64,
@@ -274,18 +285,13 @@ impl Stats {
         }
     }
 
-    /// Should the main loop continue?
-    pub fn should_continue(&self, args: &Args) -> bool {
-        args.continuous || self.sent < args.count
-    }
-
-    /// Should we break early because -e/--exit-on-success?
-    pub fn should_break(&self, success: bool, args: &Args) -> bool {
-        success && args.exit_on_success
+    /// Number of probes recorded so far.
+    pub(crate) fn attempts(&self) -> usize {
+        self.sent
     }
 
     /// Produce the final [Summary].
-    pub fn summary(&self, timestamp: Option<RecordTimestamp>) -> Summary {
+    pub(crate) fn summary(&self, timestamp: Option<RecordTimestamp>) -> Summary {
         let packet_loss = if self.sent == 0 {
             0.0
         } else {
@@ -309,15 +315,6 @@ impl Stats {
             max_duration_ms: if self.ok > 0 { self.max_rtt } else { 0.0 },
             resolve_time_ms: self.resolve_ms,
             jitter_p95_ms: self.jitter_p95.as_ref().and_then(|q| q.estimate()),
-        }
-    }
-
-    /// Map statistics to a conventional Unix exit code.
-    pub fn exit_code(&self) -> i32 {
-        if self.ok == self.sent && self.sent > 0 {
-            0
-        } else {
-            1
         }
     }
 }

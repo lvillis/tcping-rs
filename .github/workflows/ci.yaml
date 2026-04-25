@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUST_TOOLCHAIN: 1.94.1
+  RUST_TOOLCHAIN: 1.95.0
 
 jobs:
   lint:

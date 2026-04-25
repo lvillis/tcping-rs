@@ -20,7 +20,7 @@ fn clamp_to_timeout_ms(elapsed_ms: f64, timeout: Duration) -> f64 {
 /// Perform one TCP connect with timeout on a blocking thread.
 ///
 /// Returns `(success, rtt_ms)`.
-pub async fn probe_once(addr: SocketAddr, to: Duration) -> (bool, f64) {
+pub(crate) async fn probe_once(addr: SocketAddr, to: Duration) -> (bool, f64) {
     tokio::task::spawn_blocking(move || {
         let start = Instant::now();
         let ok = TcpStream::connect_timeout(&addr, to).is_ok();

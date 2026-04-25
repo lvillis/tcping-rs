@@ -1,35 +1,44 @@
-//! Pluggable output layer.
+//! CLI output formatting.
 
-use crate::{
-    cli::{OutputMode, TimestampFormat},
-    stats::{PingResult, Summary},
-    timestamp::RecordTimestamp,
-};
+use crate::cli::{OutputMode, TimestampFormat};
 use serde::Serialize;
 use serde_json::to_string;
-use std::cell::Cell;
+use tcping::{PingResult, RecordTimestamp, ResolvedTarget, Summary};
 
 /// Print behaviour contract.
-pub trait Formatter {
-    fn probe(&self, res: &PingResult);
-    fn summary(&self, sum: &Summary);
+pub(crate) trait Formatter {
+    fn resolved(&mut self, _target: &ResolvedTarget) {}
+    fn probe(&mut self, res: &PingResult);
+    fn summary(&mut self, sum: &Summary);
 }
 
 /* ---------- Normal text ---------- */
 
 fn human_timestamp(timestamp: Option<&RecordTimestamp>, format: Option<TimestampFormat>) -> String {
     match (timestamp, format) {
-        (Some(timestamp), Some(format)) => format!("[{}] ", timestamp.render(format)),
+        (Some(timestamp), Some(format)) => format!("[{}] ", render_timestamp(timestamp, format)),
         _ => String::new(),
     }
 }
 
-pub struct Normal {
+fn render_timestamp(timestamp: &RecordTimestamp, format: TimestampFormat) -> String {
+    match format {
+        TimestampFormat::Unix => {
+            let unix_ms = timestamp.unix_ms();
+            let seconds = unix_ms.div_euclid(1_000);
+            let millis = unix_ms.rem_euclid(1_000);
+            format!("{seconds}.{millis:03}")
+        }
+        TimestampFormat::Iso8601 => timestamp.rfc3339().to_string(),
+    }
+}
+
+struct Normal {
     timestamp_format: Option<TimestampFormat>,
 }
 
 impl Normal {
-    pub fn new(timestamp_format: Option<TimestampFormat>) -> Self {
+    fn new(timestamp_format: Option<TimestampFormat>) -> Self {
         Self { timestamp_format }
     }
 
@@ -50,11 +59,29 @@ impl Normal {
 }
 
 impl Formatter for Normal {
-    fn probe(&self, res: &PingResult) {
+    fn resolved(&mut self, resolved: &ResolvedTarget) {
+        if resolved.target.is_ip_literal() {
+            println!();
+            return;
+        }
+
+        let dns = resolved
+            .dns_server
+            .map(|ip| ip.to_string())
+            .unwrap_or_else(|| "system default".into());
+        println!(
+            "\nResolved {} -> {}  (DNS {dns})  in {:.4} ms\n",
+            resolved.target.host(),
+            resolved.addr.ip(),
+            resolved.resolve_time_ms
+        );
+    }
+
+    fn probe(&mut self, res: &PingResult) {
         println!("{}", self.render_probe(res));
     }
 
-    fn summary(&self, s: &Summary) {
+    fn summary(&mut self, s: &Summary) {
         let prefix = human_timestamp(s.timestamp.as_ref(), self.timestamp_format);
         println!(
             "\n{prefix}--- {} tcping statistics ---
@@ -66,9 +93,6 @@ impl Formatter for Normal {
                 "Round-trip min/avg/max = {:.4}/{:.4}/{:.4} ms",
                 s.min_duration_ms, s.avg_duration_ms, s.max_duration_ms
             );
-        }
-        if s.resolve_time_ms > 0.0 {
-            println!("Address resolved in {:.4} ms", s.resolve_time_ms);
         }
         if let Some(j95) = s.jitter_p95_ms {
             println!("Jitter p95 = {:.4} ms", j95);
@@ -159,13 +183,13 @@ impl From<&Summary> for JsonSummary {
     }
 }
 
-pub struct Json;
+struct Json;
 impl Formatter for Json {
-    fn probe(&self, res: &PingResult) {
+    fn probe(&mut self, res: &PingResult) {
         let out = JsonProbe::from(res);
         println!("{}", to_string(&out).expect("serialize JsonProbe"))
     }
-    fn summary(&self, s: &Summary) {
+    fn summary(&mut self, s: &Summary) {
         let out = JsonSummary::from(s);
         println!("{}", to_string(&out).expect("serialize JsonSummary"))
     }
@@ -178,21 +202,22 @@ const CSV_HEADER_V2: &str = "record,timestamp,timestamp_unix_ms,address,status,r
 const CSV_COLUMNS_V1: usize = 14;
 const CSV_COLUMNS_V2: usize = 16;
 
-pub struct Csv {
-    header_done: Cell<bool>,
+struct Csv {
+    header_done: bool,
     timestamps_enabled: bool,
 }
 
 impl Csv {
-    pub fn new(timestamps_enabled: bool) -> Self {
+    fn new(timestamps_enabled: bool) -> Self {
         Self {
-            header_done: Cell::new(false),
+            header_done: false,
             timestamps_enabled,
         }
     }
 
-    fn ensure_header(&self) {
-        if !self.header_done.replace(true) {
+    fn ensure_header(&mut self) {
+        if !self.header_done {
+            self.header_done = true;
             println!(
                 "{}",
                 if self.timestamps_enabled {
@@ -275,12 +300,12 @@ impl Default for Csv {
     }
 }
 impl Formatter for Csv {
-    fn probe(&self, res: &PingResult) {
+    fn probe(&mut self, res: &PingResult) {
         self.ensure_header();
         println!("{}", Self::probe_row(res));
     }
 
-    fn summary(&self, s: &Summary) {
+    fn summary(&mut self, s: &Summary) {
         self.ensure_header();
         println!("{}", Self::summary_row(s));
     }
@@ -288,16 +313,16 @@ impl Formatter for Csv {
 
 /* ---------- Markdown table ---------- */
 
-pub struct Md {
-    header_done: Cell<bool>,
+struct Md {
+    header_done: bool,
     timestamp_format: Option<TimestampFormat>,
 }
 
 impl Md {
     /// Construct a new Markdown formatter.
-    pub fn new(timestamp_format: Option<TimestampFormat>) -> Self {
+    fn new(timestamp_format: Option<TimestampFormat>) -> Self {
         Self {
-            header_done: Cell::new(false),
+            header_done: false,
             timestamp_format,
         }
     }
@@ -311,7 +336,7 @@ impl Md {
         match (res.timestamp.as_ref(), self.timestamp_format) {
             (Some(timestamp), Some(format)) => format!(
                 "| {} | {} | {} | {:.4} | {} |",
-                timestamp.render(format),
+                render_timestamp(timestamp, format),
                 res.addr,
                 status,
                 res.duration_ms,
@@ -332,9 +357,10 @@ impl Default for Md {
 }
 
 impl Formatter for Md {
-    fn probe(&self, res: &PingResult) {
+    fn probe(&mut self, res: &PingResult) {
         // print header once
-        if !self.header_done.replace(true) {
+        if !self.header_done {
+            self.header_done = true;
             if self.timestamp_format.is_some() {
                 println!("| timestamp | address | status | rtt_ms | jitter_ms |");
                 println!("|-----------|---------|--------|--------|-----------|");
@@ -347,13 +373,13 @@ impl Formatter for Md {
         println!("{}", self.render_row(res));
     }
 
-    fn summary(&self, s: &Summary) {
+    fn summary(&mut self, s: &Summary) {
         println!("\n### Summary\n");
         println!("| field | value |");
         println!("|-------|-------|");
         println!("| address | {} |", s.addr);
         if let (Some(timestamp), Some(format)) = (s.timestamp.as_ref(), self.timestamp_format) {
-            println!("| timestamp | {} |", timestamp.render(format));
+            println!("| timestamp | {} |", render_timestamp(timestamp, format));
         }
         println!("| total probes | {} |", s.total_attempts);
         println!("| success | {} |", s.successful_pings);
@@ -372,12 +398,12 @@ impl Formatter for Md {
 
 /* ---------- ANSI-colored TTY ---------- */
 
-pub struct Color {
+struct Color {
     timestamp_format: Option<TimestampFormat>,
 }
 
 impl Color {
-    pub fn new(timestamp_format: Option<TimestampFormat>) -> Self {
+    fn new(timestamp_format: Option<TimestampFormat>) -> Self {
         Self { timestamp_format }
     }
 
@@ -403,11 +429,11 @@ impl Color {
 }
 
 impl Formatter for Color {
-    fn probe(&self, res: &PingResult) {
+    fn probe(&mut self, res: &PingResult) {
         println!("{}", self.render_probe(res));
     }
 
-    fn summary(&self, s: &Summary) {
+    fn summary(&mut self, s: &Summary) {
         let ok_color = "\x1b[32m";
         let bad_color = "\x1b[31m";
         let reset = "\x1b[0m";
@@ -429,9 +455,6 @@ impl Formatter for Color {
                 s.min_duration_ms, s.avg_duration_ms, s.max_duration_ms
             );
         }
-        if s.resolve_time_ms > 0.0 {
-            println!("Address resolved in {:.4} ms", s.resolve_time_ms);
-        }
         if let Some(j95) = s.jitter_p95_ms {
             println!("Jitter p95 = {:.4} ms", j95);
         }
@@ -440,7 +463,7 @@ impl Formatter for Color {
 
 /* ---------- Factory ---------- */
 
-pub fn from_mode(
+pub(crate) fn from_mode(
     mode: OutputMode,
     timestamp_format: Option<TimestampFormat>,
 ) -> Box<dyn Formatter> {
@@ -456,12 +479,9 @@ pub fn from_mode(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        cli::TimestampFormat,
-        stats::{OUTPUT_SCHEMA_V1, OUTPUT_SCHEMA_V2},
-        timestamp::RecordTimestamp,
-    };
+    use crate::cli::TimestampFormat;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    use tcping::{OUTPUT_SCHEMA_V1, OUTPUT_SCHEMA_V2, RecordTimestamp};
 
     fn sample_timestamp() -> RecordTimestamp {
         RecordTimestamp::from_unix_ms(1_746_072_812_345)
@@ -507,12 +527,12 @@ mod tests {
 
     #[test]
     fn markdown_header_only_prints_once() {
-        let fmt = Md::new(None);
-        assert!(!fmt.header_done.get());
+        let mut fmt = Md::new(None);
+        assert!(!fmt.header_done);
         fmt.probe(&sample_result(true, None, None, OUTPUT_SCHEMA_V1));
-        assert!(fmt.header_done.get());
+        assert!(fmt.header_done);
         fmt.probe(&sample_result(true, None, None, OUTPUT_SCHEMA_V1));
-        assert!(fmt.header_done.get());
+        assert!(fmt.header_done);
     }
 
     #[test]
