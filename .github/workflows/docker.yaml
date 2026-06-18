@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install QEMU binfmt handlers
         run: docker run --rm --privileged tonistiigi/binfmt --install arm64
